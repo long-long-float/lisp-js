@@ -6,6 +6,9 @@ class Nil extends Atom
 class List
   constructor: (@values, @as_data) ->
 
+class CallFun
+  constructor: (@funname, @args) ->
+
 class Parser
   constructor: ->
 
@@ -61,27 +64,47 @@ class Parser
       @forwards_str 'nil'
       return new Nil
 
-  list: (as_data) ->
+  fun_name: ->
+    ret = ''
+    while @expects /[\w!#$%&=-~^|*+<>?_]/, false
+      ret += @getChar()
+      @pos++
+    return ret
+
+  list: ->
     @forwards '('
-    ret = []
+    values = []
     until @expects ')', false
-      ret.push @expr()
+      values.push @expr()
       @skip()
     @forwards ')'
-    return new List(ret, as_data)
+    return new List(values)
+
+  call_fun: ->
+    @forwards '('
+    args = []
+    funname = @fun_name()
+    until @expects ')', false
+      args.push @expr()
+      @skip()
+    @forwards ')'
+    return new CallFun(funname, args)
 
   expr: ->
     if @expects "'", false #value
       @forwards "'"
-      return @list(true)
+      if @expects '(', false #list
+        return @list()
+      else #atom
+        return @atom()
     else if @expects '(', false #calling function
-      return @list(false)
+      return @call_fun()
     else #atom
       return @atom()
 
   program: ->
     ret = []
-    ret.push @list() until @isEOF()
+    ret.push @expr() until @isEOF()
     return ret
 
   parse: (@code) ->
