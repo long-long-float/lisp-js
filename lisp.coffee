@@ -1,6 +1,8 @@
 class Atom
   constructor: (@value) ->
 
+class Nil extends Atom
+
 class List
   constructor: (@values) ->
 
@@ -22,9 +24,16 @@ class Parser
 
     return valid
 
+  expects_str: (str, throwing = true) ->
+    valid = @code[@pos...@pos + str.length] == str
+
   forwards: (pattern) ->
     @expects pattern
     @pos++
+
+  forwards_str: (str) ->
+    @expects_str str
+    @pos += str.length
 
   atom: ->
     c = @getChar()
@@ -46,6 +55,11 @@ class Parser
         @pos++
       @forwards '"'
       return new Atom(str)
+
+    #nil
+    if @expects_str 'nil', false
+      @forwards_str 'nil'
+      return new Nil
 
   list: ->
     @forwards '('
