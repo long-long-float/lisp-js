@@ -17,7 +17,14 @@
     <script>
       $(function () {
         $('#exec-btn').click(function(){
-          $('#parse-result').text(JSON.stringify(Lisp.eval($('#code').val()), null, '    '));
+          ret = null
+          try {
+            ret = Lisp.eval($('#code').val());
+          } catch (e) {
+            $('#parse-result').text('error : ' + e);
+            return;
+          }
+          $('#parse-result').text(JSON.stringify(ret, null, '    '));
         });
       });
     </script>

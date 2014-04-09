@@ -4,7 +4,7 @@ class Atom
 class Nil extends Atom
 
 class List
-  constructor: (@values) ->
+  constructor: (@values, @as_data) ->
 
 class Parser
   constructor: ->
@@ -20,7 +20,7 @@ class Parser
   expects: (pattern, throwing = true) ->
     valid = (pattern instanceof RegExp and pattern.test @getChar()) || pattern == @getChar()
     if !valid && throwing
-      throw "unexpected #{@getChar()}, expects #{pattern}"
+      throw "unexpected \"#{@getChar()}\", expects \"#{pattern}\""
 
     return valid
 
@@ -61,17 +61,23 @@ class Parser
       @forwards_str 'nil'
       return new Nil
 
-  list: ->
+  list: (as_data) ->
     @forwards '('
     ret = []
     until @expects ')', false
-      ret.push if @expects '(', false
-          @list()
-        else
-          @atom()
+      ret.push @expr()
       @skip()
     @forwards ')'
-    return new List(ret)
+    return new List(ret, as_data)
+
+  expr: ->
+    if @expects "'", false #value
+      @forwards "'"
+      return @list(true)
+    else if @expects '(', false #calling function
+      return @list(false)
+    else #atom
+      return @atom()
 
   program: ->
     ret = []

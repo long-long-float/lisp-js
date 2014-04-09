@@ -24,8 +24,9 @@ Nil = (function(_super) {
 })(Atom);
 
 List = (function() {
-  function List(values) {
+  function List(values, as_data) {
     this.values = values;
+    this.as_data = as_data;
   }
 
   return List;
@@ -59,7 +60,7 @@ Parser = (function() {
     }
     valid = (pattern instanceof RegExp && pattern.test(this.getChar())) || pattern === this.getChar();
     if (!valid && throwing) {
-      throw "unexpected " + (this.getChar()) + ", expects " + pattern;
+      throw "unexpected \"" + (this.getChar()) + "\", expects \"" + pattern + "\"";
     }
     return valid;
   };
@@ -109,16 +110,27 @@ Parser = (function() {
     }
   };
 
-  Parser.prototype.list = function() {
+  Parser.prototype.list = function(as_data) {
     var ret;
     this.forwards('(');
     ret = [];
     while (!this.expects(')', false)) {
-      ret.push(this.expects('(', false) ? this.list() : this.atom());
+      ret.push(this.expr());
       this.skip();
     }
     this.forwards(')');
-    return new List(ret);
+    return new List(ret, as_data);
+  };
+
+  Parser.prototype.expr = function() {
+    if (this.expects("'", false)) {
+      this.forwards("'");
+      return this.list(true);
+    } else if (this.expects('(', false)) {
+      return this.list(false);
+    } else {
+      return this.atom();
+    }
   };
 
   Parser.prototype.program = function() {
