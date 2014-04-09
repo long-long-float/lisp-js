@@ -5,6 +5,21 @@
     <title>Lisp.js</title>
   </head>
   <body>
+    <h1>Lisp.js</h1>
+    <h2>code</h2>
+    <textarea id="code"></textarea>
+    <button id="exec-btn">exec</button>
+    <h2>result(parse)</h2>
+    <pre id="parse-result"></pre>
+
     <script src="lisp.js"></script>
+    <script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
+    <script>
+      $(function () {
+        $('#exec-btn').click(function(){
+          $('#parse-result').text(JSON.stringify(Lisp.eval($('#code').val()), null, '    '));
+        });
+      });
+    </script>
   </body>
 </html>
