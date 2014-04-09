@@ -1,9 +1,6 @@
 class Atom
   constructor: (@value) ->
 
-class Item
-  constructor: (@value) ->
-
 class List
   constructor: (@values) ->
 
@@ -30,20 +27,31 @@ class Parser
     @pos++
 
   atom: ->
-    num = ''
-    while @expects /[0-9]/, false
-      num += @getChar()
-      @pos++
-    return new Atom(num)
+    c = @getChar()
 
-  item: ->
-    return new Item(@atom())
+    #number
+    if @expects /[0-9]/, false
+      num = ''
+      while @expects /[0-9]/, false
+        num += @getChar()
+        @pos++
+      return new Atom(parseInt(num))
+
+    #string
+    if @expects '"', false
+      @forwards '"'
+      str = ''
+      until @expects '"', false
+        str += @getChar()
+        @pos++
+      @forwards '"'
+      return new Atom(str)
 
   list: ->
     @forwards '('
     ret = []
     until @expects ')', false
-      ret.push @item()
+      ret.push @atom()
       @skip()
     @forwards ')'
     return new List(ret)
