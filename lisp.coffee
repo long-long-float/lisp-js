@@ -65,7 +65,10 @@ class Parser
     @forwards '('
     ret = []
     until @expects ')', false
-      ret.push @atom()
+      ret.push if @expects '(', false
+          @list()
+        else
+          @atom()
       @skip()
     @forwards ')'
     return new List(ret)

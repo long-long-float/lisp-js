@@ -114,7 +114,7 @@ Parser = (function() {
     this.forwards('(');
     ret = [];
     while (!this.expects(')', false)) {
-      ret.push(this.atom());
+      ret.push(this.expects('(', false) ? this.list() : this.atom());
       this.skip();
     }
     this.forwards(')');
