@@ -17,7 +17,7 @@ class Nil extends Atom
 class T extends Atom
 
 class List
-  constructor: (@values, @as_data) ->
+  constructor: (@values) ->
 
 class CallFun
   constructor: (@funname, @args) ->
@@ -132,26 +132,32 @@ class Parser
 class Evaluator
   constructor: ->
 
+  eval_expr: (expr) ->
+    console.log expr
+    switch expr.constructor.name
+      when 'CallFun'
+        args = expr.args
+        switch expr.funname
+          when '+'
+            new Atom args.reduce(((sum, n) -> sum + n.value), 0)
+          when 'car'
+            new List args[0].values[0]
+          when 'cdr'
+            new List args[0].values[1..]
+          when 'cons'
+            newList = args[1].values[..]
+            newList.unshift(args[0])
+            new List newList
+          when 'eq'
+            if args[0].value == args[1].value then new T else new Nil
+          when 'atom'
+            if args[0] instanceof Atom then new T else new Nil
+      else
+        expr
+
   eval: (ast) ->
     for expr in ast
-      switch expr.constructor.name
-        when 'CallFun'
-          args = expr.args
-          switch expr.funname
-            when '+'
-              new Atom args.reduce(((sum, n) -> sum + n.value), 0)
-            when 'car'
-              new List args[0].values[0]
-            when 'cdr'
-              new List args[0].values[1..]
-            when 'cons'
-              newList = args[1].values[..]
-              newList.unshift(args[0])
-              new List newList
-            when 'eq'
-              if args[0].value == args[1].value then new T else new Nil
-            when 'atom'
-              if args[0] instanceof Atom then new T else new Nil
+      @eval_expr(expr)
 
 class @Lisp
   @eval: (code, opts) ->
