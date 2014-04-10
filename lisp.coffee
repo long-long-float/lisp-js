@@ -129,9 +129,19 @@ class Evaluator
     for expr in ast
       switch expr.constructor.name
         when 'CallFun'
+          args = expr.args
           switch expr.funname
             when '+'
-              expr.args.reduce(((sum, n) -> sum + n.value), 0)
+              new Atom args.reduce(((sum, n) -> sum + n.value), 0)
+            when 'car'
+              new List args[0].values[0]
+            when 'cdr'
+              new List args[0].values[1..]
+            when 'cons'
+              newList = args[1].values[..]
+              newList.unshift(args[0])
+              new List newList
+
 class @Lisp
   @eval: (code, opts) ->
     opts = merge(ast: false, opts)
