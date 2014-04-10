@@ -27,7 +27,7 @@
             return;
           }
           $('#parse-result').text(JSON.stringify(result.ast, null, '    '));
-          $('#result').text(result.body);
+          $('#result').text(JSON.stringify(result.body, null, '    '));
         });
       });
     </script>

@@ -1,5 +1,5 @@
 merge = ->
-  args = Array.prototype.slice.call(arguments)
+  args = Array::slice.call(arguments)
 
   ret = {}
   for arg in args
@@ -126,9 +126,12 @@ class Evaluator
   constructor: ->
 
   eval: (ast) ->
-    
-
-
+    for expr in ast
+      switch expr.constructor.name
+        when 'CallFun'
+          switch expr.funname
+            when '+'
+              expr.args.reduce(((sum, n) -> sum + n.value), 0)
 class @Lisp
   @eval: (code, opts) ->
     opts = merge(ast: false, opts)
