@@ -14,6 +14,8 @@ class Atom
 
 class Nil extends Atom
 
+class T extends Atom
+
 class List
   constructor: (@values, @as_data) ->
 
@@ -74,6 +76,11 @@ class Parser
     if @expects_str 'nil', false
       @forwards_str 'nil'
       return new Nil
+
+    #t
+    if @expects 't', false
+      @forwards 't'
+      return new T
 
   fun_name: ->
     ret = ''
@@ -141,6 +148,10 @@ class Evaluator
               newList = args[1].values[..]
               newList.unshift(args[0])
               new List newList
+            when 'eq'
+              if args[0].value == args[1].value then new T else new Nil
+            when 'atom'
+              if args[0] instanceof Atom then new T else new Nil
 
 class @Lisp
   @eval: (code, opts) ->
