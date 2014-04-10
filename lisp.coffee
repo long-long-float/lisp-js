@@ -133,15 +133,14 @@ class Evaluator
   constructor: ->
 
   eval_expr: (expr) ->
-    console.log expr
     switch expr.constructor.name
       when 'CallFun'
-        args = expr.args
+        args = expr.args.map (arg) => @eval_expr(arg)
         switch expr.funname
           when '+'
             new Atom args.reduce(((sum, n) -> sum + n.value), 0)
           when 'car'
-            new List args[0].values[0]
+            args[0].values[0]
           when 'cdr'
             new List args[0].values[1..]
           when 'cons'
