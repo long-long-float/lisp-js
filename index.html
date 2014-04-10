@@ -11,20 +11,23 @@
     <button id="exec-btn">exec</button>
     <h2>result(parse)</h2>
     <pre id="parse-result"></pre>
+    <h2>result</h2>
+    <pre id="result"></pre>
 
     <script src="lisp.js"></script>
     <script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
     <script>
       $(function () {
         $('#exec-btn').click(function(){
-          ret = null
+          var result;
           try {
-            ret = Lisp.eval($('#code').val());
+            result = Lisp.eval($('#code').val(), { ast: true });
           } catch (e) {
-            $('#parse-result').text('error : ' + e);
+            $('#result').text('error : ' + e);
             return;
           }
-          $('#parse-result').text(JSON.stringify(ret, null, '    '));
+          $('#parse-result').text(JSON.stringify(result.ast, null, '    '));
+          $('#result').text(result.body);
         });
       });
     </script>

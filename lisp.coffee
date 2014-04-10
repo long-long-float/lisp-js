@@ -1,3 +1,14 @@
+merge = ->
+  args = Array.prototype.slice.call(arguments)
+
+  ret = {}
+  for arg in args
+    for item of arg
+      if arg.hasOwnProperty(item)
+        ret[item] = arg[item]
+
+  return ret
+
 class Atom
   constructor: (@value) ->
 
@@ -85,8 +96,8 @@ class Parser
     args = []
     funname = @fun_name()
     until @expects ')', false
-      args.push @expr()
       @skip()
+      args.push @expr()
     @forwards ')'
     return new CallFun(funname, args)
 
@@ -111,7 +122,19 @@ class Parser
     @pos = 0
     @program()
 
+class Evaluator
+  constructor: ->
+
+  eval: (ast) ->
+    
+
+
 class @Lisp
-  @eval: (code) ->
-    p = new Parser
-    p.parse(code)
+  @eval: (code, opts) ->
+    opts = merge(ast: false, opts)
+    ast = (new Parser).parse(code)
+    ret = {}
+    ret.ast = ast if opts.ast
+    ret.body = (new Evaluator).eval(ast)
+    
+    return ret
