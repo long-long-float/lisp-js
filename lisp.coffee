@@ -110,16 +110,16 @@ class Parser
     isSP = SpecialForm.NAMES.indexOf(funname) != -1
     until @expects ')', false
       @skip()
-      args.push if isSP then @list() else @expr()
+      args.push @expr(isSP)
 
     @forwards ')'
 
     klass = if isSP then SpecialForm else CallFun
     return new klass(funname, args)
 
-  expr: ->
-    if @expects "'", false #value
-      @forwards "'"
+  expr: (isSP) ->
+    if @expects("'", false) or isSP #value
+      @forwards "'" if @expects "'", false
       if @expects '(', false #list
         return @list()
       else #atom
@@ -148,6 +148,8 @@ class Evaluator
         switch expr.name
           when 'cond'
             ret = args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || new Nil
+          when 'quote'
+            args[0]
       when 'CallFun'
         args = expr.args.map (arg) => @eval_expr(arg)
         switch expr.funname
