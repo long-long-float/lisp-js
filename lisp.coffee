@@ -22,6 +22,10 @@ class List
 class CallFun
   constructor: (@funname, @args) ->
 
+class SpecialForm
+  @NAMES = ['cond', 'quote', 'lambda', 'define']
+  constructor: (@name, @args) ->
+
 class Parser
   constructor: ->
 
@@ -102,11 +106,16 @@ class Parser
     @forwards '('
     args = []
     funname = @fun_name()
+
+    isSP = SpecialForm.NAMES.indexOf(funname) != -1
     until @expects ')', false
       @skip()
-      args.push @expr()
+      args.push if isSP then @list() else @expr()
+
     @forwards ')'
-    return new CallFun(funname, args)
+
+    klass = if isSP then SpecialForm else CallFun
+    return new klass(funname, args)
 
   expr: ->
     if @expects "'", false #value
@@ -115,7 +124,7 @@ class Parser
         return @list()
       else #atom
         return @atom()
-    else if @expects '(', false #calling function
+    else if @expects '(', false #calling function or special form
       return @call_fun()
     else #atom
       return @atom()
@@ -134,6 +143,11 @@ class Evaluator
 
   eval_expr: (expr) ->
     switch expr.constructor.name
+      when 'SpecialForm'
+        args = expr.args
+        switch expr.name
+          when 'cond'
+            ret = args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || new Nil
       when 'CallFun'
         args = expr.args.map (arg) => @eval_expr(arg)
         switch expr.funname
