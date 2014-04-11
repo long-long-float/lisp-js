@@ -26,7 +26,7 @@ class SpecialForm
   @NAMES = ['cond', 'quote', 'lambda', 'define']
   constructor: (@name, @args) ->
 
-class Parser
+class @Parser
   constructor: ->
 
   getChar: -> @code[@pos]
@@ -38,7 +38,7 @@ class Parser
     @pos == @code.length
 
   expects: (pattern, throwing = true) ->
-    valid = (pattern instanceof RegExp and pattern.test @getChar()) || pattern == @getChar()
+    valid = @getChar() && (pattern instanceof RegExp and pattern.test @getChar()) || pattern == @getChar()
     if !valid && throwing
       throw "unexpected \"#{@getChar()}\", expects \"#{pattern}\""
 
@@ -96,7 +96,7 @@ class Parser
   list: ->
     @forwards '('
     values = []
-    until @expects ')', false
+    until @expects(')', false) or @isEOF()
       values.push @expr()
       @skip()
     @forwards ')'
@@ -108,7 +108,7 @@ class Parser
     funname = @fun_name()
 
     isSP = SpecialForm.NAMES.indexOf(funname) != -1
-    until @expects ')', false
+    until @expects(')', false) or @isEOF()
       @skip()
       args.push @expr(isSP)
 
