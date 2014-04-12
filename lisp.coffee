@@ -13,8 +13,9 @@ class Atom
   constructor: (@value) ->
 
 class Nil extends Atom
-
+nil = new Nil
 class T extends Atom
+t = new T
 
 class List
   constructor: (@values) ->
@@ -29,74 +30,63 @@ class SpecialForm
 class @Parser
   constructor: ->
 
-  getChar: -> @code[@pos]
-
   skip: ->
-    @pos++ while @getChar()?.match /[ ]/
+    @pos++ while @code[@pos]?.match /[ ]/
 
   isEOF: ->
     @pos == @code.length
 
-  expects: (pattern, throwing = true) ->
-    valid = @getChar() && (pattern instanceof RegExp and pattern.test @getChar()) || pattern == @getChar()
+  expects: (pattern, throwing = false) ->
+    valid = @code[@pos] &&
+      (pattern instanceof RegExp and pattern.test @code[@pos]) ||
+      pattern == @code[@pos...@pos + pattern.length]
     if !valid && throwing
-      throw "unexpected \"#{@getChar()}\", expects \"#{pattern}\""
+      throw "unexpected \"#{@code[@pos]}\", expects \"#{pattern}\""
 
     return valid
 
-  expects_str: (str, throwing = true) ->
-    valid = @code[@pos...@pos + str.length] == str
-
   forwards: (pattern) ->
-    @expects pattern
+    @expects pattern, true
     @pos++
 
   forwards_str: (str) ->
-    @expects_str str
+    @expects str, true
     @pos += str.length
 
   atom: ->
-    c = @getChar()
-
     #number
-    if @expects /[0-9]/, false
+    if @expects /[0-9]/
       num = ''
-      while @expects /[0-9]/, false
-        num += @getChar()
-        @pos++
+      num += @code[@pos++] while @expects /[0-9]/
       return new Atom(parseInt(num))
 
     #string
-    if @expects '"', false
+    if @expects '"'
       @forwards '"'
       str = ''
-      until @expects '"', false
-        str += @getChar()
-        @pos++
+      str += @code[@pos++] until @expects '"'
       @forwards '"'
       return new Atom(str)
 
     #nil
-    if @expects_str 'nil', false
+    if @expects 'nil'
       @forwards_str 'nil'
-      return new Nil
+      return nil
 
     #t
-    if @expects 't', false
+    if @expects 't'
       @forwards 't'
-      return new T
+      return t
 
   fun_name: ->
     ret = ''
-    while @expects /[\w!#$%&=-~^|*+<>?_]/, false
-      ret += @getChar()
-      @pos++
+    ret += @code[@pos++] while @expects /[\w!#$%&=-~^|*+<>?_]/
     return ret
 
   list: ->
     @forwards '('
     values = []
-    until @expects(')', false) or @isEOF()
+    until @expects(')') or @isEOF()
       values.push @expr()
       @skip()
     @forwards ')'
@@ -107,24 +97,24 @@ class @Parser
     args = []
     funname = @fun_name()
 
-    isSP = SpecialForm.NAMES.indexOf(funname) != -1
-    until @expects(')', false) or @isEOF()
+    isSF = SpecialForm.NAMES.indexOf(funname) != -1
+    until @expects(')') or @isEOF()
       @skip()
-      args.push @expr(isSP)
+      args.push @expr(isSF)
 
     @forwards ')'
 
-    klass = if isSP then SpecialForm else CallFun
+    klass = if isSF then SpecialForm else CallFun
     return new klass(funname, args)
 
-  expr: (isSP) ->
-    if @expects("'", false) or isSP #value
-      @forwards "'" if @expects "'", false
-      if @expects '(', false #list
+  expr: (isSF) ->
+    if @expects("'") or isSF #value
+      @forwards "'" unless isSF
+      if @expects '(' #list
         return @list()
       else #atom
         return @atom()
-    else if @expects '(', false #calling function or special form
+    else if @expects '(' #calling function or special form
       return @call_fun()
     else #atom
       return @atom()
@@ -147,7 +137,7 @@ class Evaluator
         args = expr.args
         switch expr.name
           when 'cond'
-            ret = args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || new Nil
+            ret = args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || nil
           when 'quote'
             args[0]
       when 'CallFun'
@@ -164,9 +154,9 @@ class Evaluator
             newList.unshift(args[0])
             new List newList
           when 'eq'
-            if args[0].value == args[1].value then new T else new Nil
+            if args[0].value == args[1].value then t else nil
           when 'atom'
-            if args[0] instanceof Atom then new T else new Nil
+            if args[0] instanceof Atom then t else nil
       else
         expr
 
