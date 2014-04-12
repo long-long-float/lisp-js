@@ -38,21 +38,20 @@ class @Parser
     @pos == @code.length
 
   expects: (pattern, throwing = false) ->
-    valid = @getChar() && (pattern instanceof RegExp and pattern.test @getChar()) || pattern == @getChar()
+    valid = @getChar() &&
+      (pattern instanceof RegExp and pattern.test @getChar()) ||
+      pattern == @code[@pos...@pos + pattern.length]
     if !valid && throwing
       throw "unexpected \"#{@getChar()}\", expects \"#{pattern}\""
 
     return valid
-
-  expects_str: (str, throwing = true) ->
-    valid = @code[@pos...@pos + str.length] == str
 
   forwards: (pattern) ->
     @expects pattern, true
     @pos++
 
   forwards_str: (str) ->
-    @expects_str str
+    @expects str
     @pos += str.length
 
   atom: ->
@@ -77,7 +76,7 @@ class @Parser
       return new Atom(str)
 
     #nil
-    if @expects_str 'nil'
+    if @expects 'nil'
       @forwards_str 'nil'
       return new Nil
 
