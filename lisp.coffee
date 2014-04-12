@@ -37,7 +37,7 @@ class @Parser
   isEOF: ->
     @pos == @code.length
 
-  expects: (pattern, throwing = true) ->
+  expects: (pattern, throwing = false) ->
     valid = @getChar() && (pattern instanceof RegExp and pattern.test @getChar()) || pattern == @getChar()
     if !valid && throwing
       throw "unexpected \"#{@getChar()}\", expects \"#{pattern}\""
@@ -48,7 +48,7 @@ class @Parser
     valid = @code[@pos...@pos + str.length] == str
 
   forwards: (pattern) ->
-    @expects pattern
+    @expects pattern, true
     @pos++
 
   forwards_str: (str) ->
@@ -59,36 +59,36 @@ class @Parser
     c = @getChar()
 
     #number
-    if @expects /[0-9]/, false
+    if @expects /[0-9]/
       num = ''
-      while @expects /[0-9]/, false
+      while @expects /[0-9]/
         num += @getChar()
         @pos++
       return new Atom(parseInt(num))
 
     #string
-    if @expects '"', false
+    if @expects '"'
       @forwards '"'
       str = ''
-      until @expects '"', false
+      until @expects '"'
         str += @getChar()
         @pos++
       @forwards '"'
       return new Atom(str)
 
     #nil
-    if @expects_str 'nil', false
+    if @expects_str 'nil'
       @forwards_str 'nil'
       return new Nil
 
     #t
-    if @expects 't', false
+    if @expects 't'
       @forwards 't'
       return new T
 
   fun_name: ->
     ret = ''
-    while @expects /[\w!#$%&=-~^|*+<>?_]/, false
+    while @expects /[\w!#$%&=-~^|*+<>?_]/
       ret += @getChar()
       @pos++
     return ret
@@ -96,7 +96,7 @@ class @Parser
   list: ->
     @forwards '('
     values = []
-    until @expects(')', false) or @isEOF()
+    until @expects(')') or @isEOF()
       values.push @expr()
       @skip()
     @forwards ')'
@@ -108,7 +108,7 @@ class @Parser
     funname = @fun_name()
 
     isSP = SpecialForm.NAMES.indexOf(funname) != -1
-    until @expects(')', false) or @isEOF()
+    until @expects(')') or @isEOF()
       @skip()
       args.push @expr(isSP)
 
@@ -118,13 +118,13 @@ class @Parser
     return new klass(funname, args)
 
   expr: (isSP) ->
-    if @expects("'", false) or isSP #value
-      @forwards "'" if @expects "'", false
-      if @expects '(', false #list
+    if @expects("'") or isSP #value
+      @forwards "'" if @expects "'"
+      if @expects '(' #list
         return @list()
       else #atom
         return @atom()
-    else if @expects '(', false #calling function or special form
+    else if @expects '(' #calling function or special form
       return @call_fun()
     else #atom
       return @atom()
