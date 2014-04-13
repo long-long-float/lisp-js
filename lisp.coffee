@@ -33,6 +33,12 @@ class SpecialForm
 class Lambda
   constructor: (@params, @body) ->
 
+class Environment
+  constructor: (@variables) ->
+  get: (name) -> @variables[name]
+
+envstack = []
+
 class @Parser
   constructor: ->
 
@@ -153,9 +159,18 @@ class Evaluator
             new Lambda(args[0], args[1])
       when 'CallFun'
         args = expr.args.map (arg) => @eval_expr(arg)
-        switch expr.funname.constructor.name
+        funname = if expr.funname instanceof SpecialForm then @eval_expr(expr.funname) else expr.funname
+        switch funname.constructor.name
+          when 'Lambda'
+            lambda = funname
+            envstack.push new Environment(lambda.params.values.reduce(
+              ((env, param, index) -> env[param.name] = args[index]; env), {}))
+            [name, args...] = lambda.body.values
+            ret = @eval_expr(new CallFun(name, args)) #とりあえず
+            envstack.pop()
+            return ret
           when 'Symbol'
-            switch expr.funname
+            switch funname.name
               when '+'
                 new Atom args.reduce(((sum, n) -> sum + n.value), 0)
               when 'car'
@@ -170,6 +185,8 @@ class Evaluator
                 if args[0].value == args[1].value then t else nil
               when 'atom'
                 if args[0] instanceof Atom then t else nil
+      when 'Symbol'
+        envstack[envstack.length - 1].get(expr.name)
       else
         expr
 
