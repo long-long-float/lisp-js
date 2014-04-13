@@ -185,6 +185,10 @@ class Evaluator
                 if args[0].value == args[1].value then t else nil
               when 'atom'
                 if args[0] instanceof Atom then t else nil
+              else
+                throw "undefined function : #{funname.name}"
+          else
+            throw "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function"
       when 'Symbol'
         envstack[envstack.length - 1].get(expr.name)
       else
