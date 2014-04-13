@@ -12,6 +12,9 @@ merge = ->
 class Atom
   constructor: (@value) ->
 
+class Symbol
+  constructor: (@name) ->
+
 class Nil extends Atom
 nil = new Nil
 class T extends Atom
@@ -26,6 +29,9 @@ class CallFun
 class SpecialForm
   @NAMES = ['cond', 'quote', 'lambda', 'define']
   constructor: (@name, @args) ->
+
+class Lambda
+  constructor: (@params, @body) ->
 
 class @Parser
   constructor: ->
@@ -47,7 +53,7 @@ class @Parser
 
   forwards: (pattern) ->
     @expects pattern, true
-    @pos++
+    @code[@pos++]
 
   forwards_str: (str) ->
     @expects str, true
@@ -78,7 +84,10 @@ class @Parser
       @forwards 't'
       return t
 
-  fun_name: ->
+    #var
+    return new Symbol(@symbol())
+
+  symbol: ->
     ret = ''
     ret += @code[@pos++] while @expects /[\w!#$%&=-~^|*+<>?_]/
     return ret
@@ -95,9 +104,9 @@ class @Parser
   call_fun: ->
     @forwards '('
     args = []
-    funname = @fun_name()
+    funname = @expr()
 
-    isSF = SpecialForm.NAMES.indexOf(funname) != -1
+    isSF = SpecialForm.NAMES.indexOf(funname.name) != -1
     until @expects(')') or @isEOF()
       @skip()
       args.push @expr(isSF)
@@ -135,28 +144,32 @@ class Evaluator
     switch expr.constructor.name
       when 'SpecialForm'
         args = expr.args
-        switch expr.name
+        switch expr.name.name
           when 'cond'
             ret = args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || nil
           when 'quote'
             args[0]
+          when 'lambda'
+            new Lambda(args[0], args[1])
       when 'CallFun'
         args = expr.args.map (arg) => @eval_expr(arg)
-        switch expr.funname
-          when '+'
-            new Atom args.reduce(((sum, n) -> sum + n.value), 0)
-          when 'car'
-            args[0].values[0]
-          when 'cdr'
-            new List args[0].values[1..]
-          when 'cons'
-            newList = args[1].values[..]
-            newList.unshift(args[0])
-            new List newList
-          when 'eq'
-            if args[0].value == args[1].value then t else nil
-          when 'atom'
-            if args[0] instanceof Atom then t else nil
+        switch expr.funname.constructor.name
+          when 'Symbol'
+            switch expr.funname
+              when '+'
+                new Atom args.reduce(((sum, n) -> sum + n.value), 0)
+              when 'car'
+                args[0].values[0]
+              when 'cdr'
+                new List args[0].values[1..]
+              when 'cons'
+                newList = args[1].values[..]
+                newList.unshift(args[0])
+                new List newList
+              when 'eq'
+                if args[0].value == args[1].value then t else nil
+              when 'atom'
+                if args[0] instanceof Atom then t else nil
       else
         expr
 

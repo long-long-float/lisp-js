@@ -2,24 +2,33 @@
 (function() {
   describe('Lisp', function() {
     return describe('parser', function() {
+      var p;
+      p = null;
+      beforeEach(function(done) {
+        p = new Parser;
+        return done();
+      });
       it('should not thrown', function() {
         expect(function() {
-          return (new Parser).parse('(1 "hoge" nil t \'(1 2 3))');
+          return p.parse('(1 "hoge" nil t \'(1 2 3))');
         }).not.to["throw"]();
         expect(function() {
-          return (new Parser).parse('(cons 0 \'(1 2 3))');
+          return p.parse('(cons 0 \'(1 2 3))');
         }).not.to["throw"]();
         expect(function() {
-          return (new Parser).parse('(cond ((eq 1 1) "hoge") ((eq 2 2) "piyo"))');
+          return p.parse('(cond ((eq 1 1) "hoge") ((eq 2 2) "piyo"))');
+        }).not.to["throw"]();
+        expect(function() {
+          return p.parse('(quote (1 2 3))');
         }).not.to["throw"]();
         return expect(function() {
-          return (new Parser).parse('(quote (1 2 3))');
+          return p.parse('(lambda (x y) (+ x y))');
         }).not.to["throw"]();
       });
       return it('should thrown', function() {
         return expect(function() {
-          return (new Parser).parse('(');
-        }).to["throw"]();
+          return p.parse('(').to["throw"]();
+        });
       });
     });
   });
