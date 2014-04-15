@@ -32,32 +32,26 @@
       });
     });
     return describe('evaluator', function() {
-      var lisp;
-      lisp = null;
-      beforeEach(function(done) {
-        lisp = new Lisp;
-        return done();
-      });
       it('should return sum of arguments', function() {
-        return expect(lisp["eval"]('(+ 1 2 3)')).to.equal('6');
+        return expect(Lisp["eval"]('(+ 1 2 3)')).to.equal('6');
       });
       it('should return first of list', function() {
-        return expect(lisp["eval"]('(car \'(1 2 3)')).to.equal('1');
+        return expect(Lisp["eval"]('(car \'(1 2 3)')).to.equal('1');
       });
       it('should return rest of list', function() {
-        return expect(lisp["eval"]('cdr \'(1 2 3)')).to.equal('(2 3)');
+        return expect(Lisp["eval"]('(cdr \'(1 2 3))')).to.equal('(2 3)');
       });
       it('should return joined list', function() {
-        return expect(lisp["eval"]('(cons 0 \'(1 2 3)')).to.equal('(0 1 2 3)');
+        return expect(Lisp["eval"]('(cons 0 \'(1 2 3)')).to.equal('(0 1 2 3)');
       });
       it('should return t', function() {
-        return expect(lisp["eval"]('(eq 1 1)')).to.equal('t');
+        return expect(Lisp["eval"]('(eq 1 1)')).to.equal('t');
       });
       it('should return nil', function() {
-        return expect(lisp["eval"]('(eq 1 2)')).to.equal('nil');
+        return expect(Lisp["eval"]('(eq 1 2)')).to.equal('nil');
       });
       return it('should return t', function() {
-        return expect(lisp["eval"]('(atom 1)')).to.equal('t');
+        return expect(Lisp["eval"]('(atom 1)')).to.equal('t');
       });
     });
   });
