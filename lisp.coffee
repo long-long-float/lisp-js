@@ -50,7 +50,7 @@ class @Parser
   constructor: ->
 
   skip: ->
-    @pos++ while @code[@pos]?.match /[ ]/
+    @pos++ while @code[@pos]?.match /[ \r\n\t]/
 
   isEOF: ->
     @pos == @code.length
@@ -143,7 +143,9 @@ class @Parser
 
   program: ->
     ret = []
-    ret.push @expr() until @isEOF()
+    until @isEOF()
+      @skip()
+      ret.push @expr()
     return ret
 
   parse: (@code) ->
@@ -178,6 +180,9 @@ class Evaluator
             return ret
           when 'Symbol'
             switch funname.name
+              when 'alert'
+                alert args[0].value
+                nil
               when '+'
                 new Atom args.reduce(((sum, n) -> sum + n.value), 0)
               when 'car'
@@ -216,3 +221,9 @@ class @Lisp
     ret.body = (new Evaluator).eval(ast)
     
     return ret
+
+#support script tag
+$ ->
+  $('script[type="text/lisp"]').each ->
+    console.log $(this).text()
+    Lisp.eval $(this).text()
