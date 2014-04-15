@@ -11,24 +11,31 @@ merge = ->
 
 class Atom
   constructor: (@value) ->
+  toString: -> "#{@value}"
 
 class Symbol
   constructor: (@name) ->
+  toString: -> @name
 
 class Nil extends Atom
+  toString: -> 'nil'
 nil = new Nil
 class T extends Atom
+  toString: -> 't'
 t = new T
 
 class List
   constructor: (@values) ->
+  toString: -> "(#{@values.map((v) -> v.toString()).join(' ')})"
 
 class CallFun
   constructor: (@funname, @args) ->
+  toString: -> "(#{@funname} #{@values.map((v) -> v.toString()).join(' ')})"
 
 class SpecialForm
   @NAMES = ['cond', 'quote', 'lambda', 'define']
   constructor: (@name, @args) ->
+  toString: -> "(#{@name} #{@args.map((v) -> v.toString()).join(' ')})"
 
 class Lambda
   constructor: (@params, @body) ->
@@ -195,8 +202,10 @@ class Evaluator
         expr
 
   eval: (ast) ->
+    ret = nil
     for expr in ast
-      @eval_expr(expr)
+      ret = @eval_expr(expr)
+    return ret.toString()
 
 class @Lisp
   @eval: (code, opts) ->
