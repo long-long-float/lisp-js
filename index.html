@@ -16,15 +16,12 @@
 
     <script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
     <script src="lisp.js"></script>
-    <script type="text/lisp">
-      (alert (+ 1 2 3))
-    </script>
     <script>
       $(function () {
         $('#exec-btn').click(function(){
           var result;
           try {
-            result = Lisp.eval($('#code').val(), { ast: true });
+          result = Lisp.eval($('#code').val(), { ast: true });
           } catch (e) {
             $('#result').text('error : ' + e);
             return;

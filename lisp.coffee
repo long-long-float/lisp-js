@@ -33,7 +33,7 @@ class CallFun
   toString: -> "(#{@funname} #{@values.map((v) -> v.toString()).join(' ')})"
 
 class SpecialForm
-  @NAMES = ['cond', 'quote', 'lambda', 'define']
+  @NAMES = ['cond', 'quote', 'lambda', 'defun']
   constructor: (@name, @args) ->
   toString: -> "(#{@name} #{@args.map((v) -> v.toString()).join(' ')})"
 
@@ -42,9 +42,16 @@ class Lambda
 
 class Environment
   constructor: (@variables) ->
-  get: (name) -> @variables[name]
+  get: (name) ->
+    val = @variables[name]
+    throw "undefined #{name}" unless val
+    return val
+  set: (name, val) -> @variables[name] = val
 
 envstack = []
+currentEnv = ->
+  throw "envstack is empty" unless envstack.length > 0
+  envstack[envstack.length - 1]
 
 class @Parser
   constructor: ->
@@ -155,6 +162,14 @@ class @Parser
 class Evaluator
   constructor: ->
 
+  exec_lambda: (lambda, args) ->
+    envstack.push new Environment(lambda.params.values.reduce(
+      ((env, param, index) -> env[param.name] = args[index]; env), {}))
+    [name, args...] = lambda.body.values
+    ret = @eval_expr(new CallFun(name, args)) #とりあえず
+    envstack.pop()
+    return ret
+
   eval_expr: (expr) ->
     switch expr.constructor.name
       when 'SpecialForm'
@@ -166,18 +181,17 @@ class Evaluator
             args[0]
           when 'lambda'
             new Lambda(args[0], args[1])
+          when 'defun'
+            lambda = new Lambda(args[1], args[2])
+            currentEnv().set(args[0].name, lambda)
+            return lambda
+
       when 'CallFun'
         args = expr.args.map (arg) => @eval_expr(arg)
         funname = if expr.funname instanceof SpecialForm then @eval_expr(expr.funname) else expr.funname
         switch funname.constructor.name
           when 'Lambda'
-            lambda = funname
-            envstack.push new Environment(lambda.params.values.reduce(
-              ((env, param, index) -> env[param.name] = args[index]; env), {}))
-            [name, args...] = lambda.body.values
-            ret = @eval_expr(new CallFun(name, args)) #とりあえず
-            envstack.pop()
-            return ret
+            @exec_lambda(funname)
           when 'Symbol'
             switch funname.name
               when 'alert'
@@ -198,16 +212,21 @@ class Evaluator
               when 'atom'
                 if args[0] instanceof Atom then t else nil
               else
-                throw "undefined function : #{funname.name}"
+                lambda = currentEnv().get(funname.name)
+                if lambda
+                  @exec_lambda(lambda, args)
+                else
+                  throw "undefined function : #{funname.name}"
           else
             throw "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function"
       when 'Symbol'
-        envstack[envstack.length - 1].get(expr.name)
+        currentEnv().get(expr.name)
       else
         expr
 
   eval: (ast) ->
     ret = nil
+    envstack.push new Environment({})
     for expr in ast
       ret = @eval_expr(expr)
     return ret.toString()
@@ -225,5 +244,4 @@ class @Lisp
 #support script tag
 $ ->
   $('script[type="text/lisp"]').each ->
-    console.log $(this).text()
     Lisp.eval $(this).text()
