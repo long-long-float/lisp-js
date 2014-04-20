@@ -52,9 +52,7 @@ class @Parser
     @pos == @code.length
 
   expects: (pattern, throwing = false) ->
-    valid = @code[@pos] &&
-      (pattern instanceof RegExp and pattern.test @code[@pos]) ||
-      pattern == @code[@pos...@pos + pattern.length]
+    valid = @code[@pos] && (pattern instanceof RegExp and pattern.test @code[@pos]) || pattern == @code[@pos...@pos + pattern.length]
     if !valid && throwing
       throw "unexpected \"#{@code[@pos]}\", expects \"#{pattern}\""
 
@@ -62,11 +60,11 @@ class @Parser
 
   forwards: (pattern) ->
     @expects pattern, true
-    @code[@pos++]
+    @code[@pos]
+    @pos += if pattern instanceof RegExp then 1 else pattern.length
 
-  forwards_str: (str) ->
-    @expects str, true
-    @pos += str.length
+  forwards_if: (pattern) ->
+    @forwards pattern if @expects pattern
 
   atom: ->
     #number
@@ -76,22 +74,14 @@ class @Parser
       return parseInt(num)
 
     #string
-    if @expects '"'
-      @forwards '"'
+    if @forwards_if '"'
       str = ''
       str += @code[@pos++] until @expects '"'
       @forwards '"'
       return str
 
-    #nil
-    if @expects 'nil'
-      @forwards_str 'nil'
-      return nil
-
-    #t
-    if @expects 't'
-      @forwards 't'
-      return t
+    return nil if @forwards_if 'nil'
+    return t if @forwards_if 't'
 
     #var
     return new Symbol(@symbol())
