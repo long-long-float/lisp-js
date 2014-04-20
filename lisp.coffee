@@ -1,14 +1,3 @@
-merge = ->
-  args = Array::slice.call(arguments)
-
-  ret = {}
-  for arg in args
-    for item of arg
-      if arg.hasOwnProperty(item)
-        ret[item] = arg[item]
-
-  return ret
-
 class Atom
   constructor: (@value) ->
   toString: -> "#{@value}"
@@ -232,14 +221,9 @@ class Evaluator
     return ret.toString()
 
 class @Lisp
-  @eval: (code, opts) ->
-    opts = merge(ast: false, opts)
+  @eval: (code) ->
     ast = (new Parser).parse(code)
-    ret = {}
-    ret.ast = ast if opts.ast
-    ret.body = (new Evaluator).eval(ast)
-    
-    return ret
+    {ast: ast, body: (new Evaluator).eval(ast)}
 
 #support script tag
 $ ->
