@@ -172,30 +172,22 @@ class Evaluator
           when 'Lambda'
             @exec_lambda(funname)
           when 'Symbol'
-            switch funname.name
-              when 'alert'
-                alert args[0]
-                nil
-              when '+'
-                args.reduce(((sum, n) -> sum + n), 0)
-              when 'car'
-                args[0].values[0]
-              when 'cdr'
-                new List args[0].values[1..]
-              when 'cons'
-                newList = args[1].values[..]
-                newList.unshift(args[0])
-                new List newList
-              when 'eq'
-                if args[0] == args[1] then t else nil
-              when 'atom'
-                if isAtom(args[0]) then t else nil
+            funcs = {
+              '+': -> args.reduce(((sum, n) -> sum + n), 0),
+              'car': -> args[0].values[0]
+              'cdr': -> new List args[0].values[1..]
+              'cons': -> new List [args[0], args[1].values...]
+              'eq': -> if args[0] == args[1] then t else nil
+              'atom': -> if isAtom(args[0]) then t else nil
+            }
+            if fun = funcs[funname.name]
+              fun()
+            else
+              lambda = currentEnv().get(funname.name)
+              if lambda
+                @exec_lambda(lambda, args)
               else
-                lambda = currentEnv().get(funname.name)
-                if lambda
-                  @exec_lambda(lambda, args)
-                else
-                  throw "undefined function : #{funname.name}"
+                throw "undefined function : #{funname.name}"
           else
             throw "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function"
       when 'Symbol'
