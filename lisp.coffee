@@ -1,15 +1,11 @@
-class Atom
-  constructor: (@value) ->
-  toString: -> "#{@value}"
-
 class Symbol
   constructor: (@name) ->
   toString: -> @name
 
-class Nil extends Atom
+class Nil
   toString: -> 'nil'
 nil = new Nil
-class T extends Atom
+class T
   toString: -> 't'
 t = new T
 
@@ -36,6 +32,10 @@ class Environment
     throw "undefined #{name}" unless val
     return val
   set: (name, val) -> @variables[name] = val
+
+isAtom = (val) ->
+  typeof val == 'string' or typeof val == 'number' or
+    val instanceof Nil or val instanceof T
 
 envstack = []
 currentEnv = ->
@@ -73,7 +73,7 @@ class @Parser
     if @expects /[0-9]/
       num = ''
       num += @code[@pos++] while @expects /[0-9]/
-      return new Atom(parseInt(num))
+      return parseInt(num)
 
     #string
     if @expects '"'
@@ -81,7 +81,7 @@ class @Parser
       str = ''
       str += @code[@pos++] until @expects '"'
       @forwards '"'
-      return new Atom(str)
+      return str
 
     #nil
     if @expects 'nil'
@@ -184,10 +184,10 @@ class Evaluator
           when 'Symbol'
             switch funname.name
               when 'alert'
-                alert args[0].value
+                alert args[0]
                 nil
               when '+'
-                new Atom args.reduce(((sum, n) -> sum + n.value), 0)
+                args.reduce(((sum, n) -> sum + n), 0)
               when 'car'
                 args[0].values[0]
               when 'cdr'
@@ -197,9 +197,9 @@ class Evaluator
                 newList.unshift(args[0])
                 new List newList
               when 'eq'
-                if args[0].value == args[1].value then t else nil
+                if args[0] == args[1] then t else nil
               when 'atom'
-                if args[0] instanceof Atom then t else nil
+                if isAtom(args[0]) then t else nil
               else
                 lambda = currentEnv().get(funname.name)
                 if lambda
