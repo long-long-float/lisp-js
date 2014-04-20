@@ -17,8 +17,8 @@ class CallFun
   constructor: (@funname, @args) ->
   toString: -> "(#{@funname} #{@values.map((v) -> v.toString()).join(' ')})"
 
+SF_NAMES = ['cond', 'quote', 'lambda', 'defun']
 class SpecialForm
-  @NAMES = ['cond', 'quote', 'lambda', 'defun']
   constructor: (@name, @args) ->
   toString: -> "(#{@name} #{@args.map((v) -> v.toString()).join(' ')})"
 
@@ -43,8 +43,6 @@ currentEnv = ->
   envstack[envstack.length - 1]
 
 class @Parser
-  constructor: ->
-
   skip: ->
     @pos++ while @code[@pos]?.match /[ \r\n\t]/
 
@@ -105,7 +103,7 @@ class @Parser
     args = []
     funname = @expr()
 
-    isSF = SpecialForm.NAMES.indexOf(funname.name) != -1
+    isSF = SF_NAMES.indexOf(funname.name) != -1
     until @expects(')') or @isEOF()
       @skip()
       args.push @expr(isSF)
@@ -139,8 +137,6 @@ class @Parser
     @program()
 
 class Evaluator
-  constructor: ->
-
   exec_lambda: (lambda, args) ->
     envstack.push new Environment(lambda.params.values.reduce(
       ((env, param, index) -> env[param.name] = args[index]; env), {}))
@@ -153,17 +149,12 @@ class Evaluator
     switch expr.constructor.name
       when 'SpecialForm'
         args = expr.args
-        switch expr.name.name
-          when 'cond'
-            ret = args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || nil
-          when 'quote'
-            args[0]
-          when 'lambda'
-            new Lambda(args[0], args[1])
-          when 'defun'
-            lambda = new Lambda(args[1], args[2])
-            currentEnv().set(args[0].name, lambda)
-            return lambda
+        {
+          'cond': args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || nil
+          'quote': args[0]
+          'lambda': new Lambda(args[0], args[1])
+          'defun': currentEnv().set(args[0].name, new Lambda(args[1], args[2]))
+        }[expr.name]    
 
       when 'CallFun'
         args = expr.args.map (arg) => @eval_expr(arg)
@@ -180,8 +171,8 @@ class Evaluator
               'eq': -> if args[0] == args[1] then t else nil
               'atom': -> if isAtom(args[0]) then t else nil
             }
-            if fun = funcs[funname.name]
-              fun()
+            if funs = funcs[funname.name]
+              funs()
             else
               lambda = currentEnv().get(funname.name)
               if lambda
