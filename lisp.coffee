@@ -174,8 +174,7 @@ class Evaluator
             if funs = funcs[funname.name]
               funs()
             else
-              lambda = currentEnv().get(funname.name)
-              if lambda
+              if lambda = currentEnv().get(funname.name)
                 @exec_lambda(lambda, args)
               else
                 throw "undefined function : #{funname.name}"
@@ -187,11 +186,8 @@ class Evaluator
         expr
 
   eval: (ast) ->
-    ret = nil
     envstack.push new Environment({})
-    for expr in ast
-      ret = @eval_expr(expr)
-    return ret.toString()
+    return (@eval_expr(expr) for expr in ast).pop().toString()
 
 class @Lisp
   @eval: (code) ->
