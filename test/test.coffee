@@ -41,3 +41,27 @@ describe 'Lisp', ->
 
     it 'should return t', ->
       expect(Lisp.eval('(atom 1)').body).to.equal('t')
+
+    it 'should return first value', ->
+      expect(Lisp.eval("""
+        (cond ((eq 1 1) "OK") ((eq 1 2) "NG"))
+        """).body).to.equal('OK')
+
+    it 'should return second value', ->
+      expect(Lisp.eval("""
+        (cond ((eq 1 2) "NG") ((eq 1 1) "OK"))
+        """).body).to.equal('OK')
+
+    it 'should return nil', ->
+      expect(Lisp.eval("""
+        (cond ((eq 1 2) "NG") ((eq 3 4) "NG"))
+        """).body).to.equal('nil')
+
+    it 'should return list', ->
+      expect(Lisp.eval('(quote (1 2 3))').body).to.equal('(1 2 3)')
+
+    it 'should can define and call function', ->
+      expect(Lisp.eval("""
+        (defun sum (x y) (+ x y))
+        (sum 1 2)
+        """).body).to.equal('3')

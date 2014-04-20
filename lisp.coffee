@@ -150,11 +150,12 @@ class Evaluator
       when 'SpecialForm'
         args = expr.args
         {
-          'cond': args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || nil
-          'quote': args[0]
-          'lambda': new Lambda(args[0], args[1])
-          'defun': currentEnv().set(args[0].name, new Lambda(args[1], args[2]))
-        }[expr.name]    
+          'cond': -> args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || nil
+          'quote': -> args[0]
+          'lambda': -> new Lambda(args[0], args[1])
+          'defun': -> console.log currentEnv().set(args[0].name, new Lambda(args[1], args[2]))
+        }[expr.name.name]
+        console.log expr.name.name
 
       when 'CallFun'
         args = expr.args.map (arg) => @eval_expr(arg)

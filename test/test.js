@@ -50,8 +50,23 @@
       it('should return nil', function() {
         return expect(Lisp["eval"]('(eq 1 2)').body).to.equal('nil');
       });
-      return it('should return t', function() {
+      it('should return t', function() {
         return expect(Lisp["eval"]('(atom 1)').body).to.equal('t');
+      });
+      it('should return first value', function() {
+        return expect(Lisp["eval"]("(cond ((eq 1 1) \"OK\") ((eq 1 2) \"NG\"))").body).to.equal('OK');
+      });
+      it('should return second value', function() {
+        return expect(Lisp["eval"]("(cond ((eq 1 2) \"NG\") ((eq 1 1) \"OK\"))").body).to.equal('OK');
+      });
+      it('should return nil', function() {
+        return expect(Lisp["eval"]("(cond ((eq 1 2) \"NG\") ((eq 3 4) \"NG\"))").body).to.equal('nil');
+      });
+      it('should return list', function() {
+        return expect(Lisp["eval"]('(quote (1 2 3))').body).to.equal('(1 2 3)');
+      });
+      return it('should can define and call function', function() {
+        return expect(Lisp["eval"]("(defun sum (x y) (+ x y))\n(sum 1 2)").body).to.equal('3');
       });
     });
   });
