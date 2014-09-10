@@ -21,7 +21,7 @@
         $('#exec-btn').click(function(){
           var result;
           try {
-          result = Lisp.eval($('#code').val(), { ast: true });
+            result = Lisp.eval($('#code').val());
           } catch (e) {
             $('#result').text('error : ' + e);
             return;

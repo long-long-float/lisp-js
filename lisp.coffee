@@ -1,26 +1,11 @@
-merge = ->
-  args = Array::slice.call(arguments)
-
-  ret = {}
-  for arg in args
-    for item of arg
-      if arg.hasOwnProperty(item)
-        ret[item] = arg[item]
-
-  return ret
-
-class Atom
-  constructor: (@value) ->
-  toString: -> "#{@value}"
-
 class Symbol
   constructor: (@name) ->
   toString: -> @name
 
-class Nil extends Atom
+class Nil
   toString: -> 'nil'
 nil = new Nil
-class T extends Atom
+class T
   toString: -> 't'
 t = new T
 
@@ -32,8 +17,8 @@ class CallFun
   constructor: (@funname, @args) ->
   toString: -> "(#{@funname} #{@values.map((v) -> v.toString()).join(' ')})"
 
+SF_NAMES = ['cond', 'quote', 'lambda', 'defun']
 class SpecialForm
-  @NAMES = ['cond', 'quote', 'lambda', 'defun']
   constructor: (@name, @args) ->
   toString: -> "(#{@name} #{@args.map((v) -> v.toString()).join(' ')})"
 
@@ -48,14 +33,16 @@ class Environment
     return val
   set: (name, val) -> @variables[name] = val
 
+isAtom = (val) ->
+  typeof val == 'string' or typeof val == 'number' or
+    val instanceof Nil or val instanceof T
+
 envstack = []
 currentEnv = ->
   throw "envstack is empty" unless envstack.length > 0
   envstack[envstack.length - 1]
 
 class @Parser
-  constructor: ->
-
   skip: ->
     @pos++ while @code[@pos]?.match /[ \r\n\t]/
 
@@ -63,9 +50,7 @@ class @Parser
     @pos == @code.length
 
   expects: (pattern, throwing = false) ->
-    valid = @code[@pos] &&
-      (pattern instanceof RegExp and pattern.test @code[@pos]) ||
-      pattern == @code[@pos...@pos + pattern.length]
+    valid = @code[@pos] && (pattern instanceof RegExp and pattern.test @code[@pos]) || pattern == @code[@pos...@pos + pattern.length]
     if !valid && throwing
       throw "unexpected \"#{@code[@pos]}\", expects \"#{pattern}\""
 
@@ -73,36 +58,28 @@ class @Parser
 
   forwards: (pattern) ->
     @expects pattern, true
-    @code[@pos++]
+    @code[@pos]
+    @pos += if pattern instanceof RegExp then 1 else pattern.length
 
-  forwards_str: (str) ->
-    @expects str, true
-    @pos += str.length
+  forwards_if: (pattern) ->
+    @forwards pattern if @expects pattern
 
   atom: ->
     #number
     if @expects /[0-9]/
       num = ''
       num += @code[@pos++] while @expects /[0-9]/
-      return new Atom(parseInt(num))
+      return parseInt(num)
 
     #string
-    if @expects '"'
-      @forwards '"'
+    if @forwards_if '"'
       str = ''
       str += @code[@pos++] until @expects '"'
       @forwards '"'
-      return new Atom(str)
+      return str
 
-    #nil
-    if @expects 'nil'
-      @forwards_str 'nil'
-      return nil
-
-    #t
-    if @expects 't'
-      @forwards 't'
-      return t
+    return nil if @forwards_if 'nil'
+    return t if @forwards_if 't'
 
     #var
     return new Symbol(@symbol())
@@ -126,7 +103,7 @@ class @Parser
     args = []
     funname = @expr()
 
-    isSF = SpecialForm.NAMES.indexOf(funname.name) != -1
+    isSF = SF_NAMES.indexOf(funname.name) != -1
     until @expects(')') or @isEOF()
       @skip()
       args.push @expr(isSF)
@@ -160,8 +137,6 @@ class @Parser
     @program()
 
 class Evaluator
-  constructor: ->
-
   exec_lambda: (lambda, args) ->
     envstack.push new Environment(lambda.params.values.reduce(
       ((env, param, index) -> env[param.name] = args[index]; env), {}))
@@ -174,17 +149,13 @@ class Evaluator
     switch expr.constructor.name
       when 'SpecialForm'
         args = expr.args
-        switch expr.name.name
-          when 'cond'
-            ret = args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || nil
-          when 'quote'
-            args[0]
-          when 'lambda'
-            new Lambda(args[0], args[1])
-          when 'defun'
-            lambda = new Lambda(args[1], args[2])
-            currentEnv().set(args[0].name, lambda)
-            return lambda
+        {
+          'cond': -> args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || nil
+          'quote': -> args[0]
+          'lambda': -> new Lambda(args[0], args[1])
+          'defun': -> console.log currentEnv().set(args[0].name, new Lambda(args[1], args[2]))
+        }[expr.name.name]
+        console.log expr.name.name
 
       when 'CallFun'
         args = expr.args.map (arg) => @eval_expr(arg)
@@ -193,30 +164,21 @@ class Evaluator
           when 'Lambda'
             @exec_lambda(funname)
           when 'Symbol'
-            switch funname.name
-              when 'alert'
-                alert args[0].value
-                nil
-              when '+'
-                new Atom args.reduce(((sum, n) -> sum + n.value), 0)
-              when 'car'
-                args[0].values[0]
-              when 'cdr'
-                new List args[0].values[1..]
-              when 'cons'
-                newList = args[1].values[..]
-                newList.unshift(args[0])
-                new List newList
-              when 'eq'
-                if args[0].value == args[1].value then t else nil
-              when 'atom'
-                if args[0] instanceof Atom then t else nil
+            funcs = {
+              '+': -> args.reduce(((sum, n) -> sum + n), 0),
+              'car': -> args[0].values[0]
+              'cdr': -> new List args[0].values[1..]
+              'cons': -> new List [args[0], args[1].values...]
+              'eq': -> if args[0] == args[1] then t else nil
+              'atom': -> if isAtom(args[0]) then t else nil
+            }
+            if funs = funcs[funname.name]
+              funs()
+            else
+              if lambda = currentEnv().get(funname.name)
+                @exec_lambda(lambda, args)
               else
-                lambda = currentEnv().get(funname.name)
-                if lambda
-                  @exec_lambda(lambda, args)
-                else
-                  throw "undefined function : #{funname.name}"
+                throw "undefined function : #{funname.name}"
           else
             throw "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function"
       when 'Symbol'
@@ -225,21 +187,13 @@ class Evaluator
         expr
 
   eval: (ast) ->
-    ret = nil
     envstack.push new Environment({})
-    for expr in ast
-      ret = @eval_expr(expr)
-    return ret.toString()
+    return (@eval_expr(expr) for expr in ast).pop().toString()
 
 class @Lisp
-  @eval: (code, opts) ->
-    opts = merge(ast: false, opts)
+  @eval: (code) ->
     ast = (new Parser).parse(code)
-    ret = {}
-    ret.ast = ast if opts.ast
-    ret.body = (new Evaluator).eval(ast)
-    
-    return ret
+    {ast: ast, body: (new Evaluator).eval(ast)}
 
 #support script tag
 $ ->
