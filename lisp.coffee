@@ -205,4 +205,4 @@ class @Lisp
 if $?
   $ ->
     $('script[type="text/lisp"]').each ->
-    Lisp.eval $(this).text()
+      Lisp.eval $(this).text()
