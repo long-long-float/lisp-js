@@ -17,7 +17,8 @@ class CallFun
   constructor: (@funname, @args) ->
   toString: -> "(#{@funname} #{@values.map((v) -> v.toString()).join(' ')})"
 
-SF_NAMES = ['cond', 'quote', 'lambda', 'defun']
+# TODO: 下の実装と離れてしまっているのをどうにかしたい
+SF_NAMES = ['cond', 'quote', 'lambda', 'defun', 'setq', 'defmacro']
 class SpecialForm
   constructor: (@name, @args) ->
   toString: -> "(#{@name} #{@args.map((v) -> v.toString()).join(' ')})"
@@ -27,8 +28,11 @@ class Lambda
 
 class Environment
   constructor: (@variables) ->
-  get: (name) -> @variables[name]
+    @macros = {}
+  get: (name)      -> @variables[name]
   set: (name, val) -> @variables[name] = val
+  getMacro: (name)        -> @macros[name]
+  setMacro: (name, macro) -> @macros[name] = macro
 
 class LispError extends Error
   constructor: (@message) ->
@@ -160,7 +164,7 @@ class Evaluator
     envstack.push new Environment(lambda.params.values.reduce(
       ((env, param, index) -> env[param.name] = args[index]; env), {}))
     [name, args...] = lambda.body.values
-    ret = @eval_expr(new CallFun(name, args)) #とりあえず
+    ret = @eval_expr(new CallFun(name, args)) #TODO: とりあえず
     envstack.pop()
     return ret
 
@@ -180,6 +184,11 @@ class Evaluator
             new Lambda(args[0], args[1])
           'defun': ->
             currentEnv().set(args[0].name, new Lambda(args[1], args[2]))
+          'setq': =>
+            value = @eval_expr(args[1])
+            currentEnv().set(args[0].name, value)
+          'defmacro': ->
+            currentEnv().setMacro(args[0].name, new Lambda(args[1], args[2]))
         }[expr.name.name]()
 
       when 'CallFun'
@@ -190,7 +199,8 @@ class Evaluator
             @exec_lambda(funname)
           when 'Symbol'
             funcs = {
-              '+': -> args.reduce(((sum, n) -> sum + n), 0),
+              'list': -> args
+              '+': -> args.reduce(((sum, n) -> sum + n), 0)
               'car': -> args[0].values[0]
               'cdr': -> new List args[0].values[1..]
               'cons': -> new List [args[0], args[1].values...]
