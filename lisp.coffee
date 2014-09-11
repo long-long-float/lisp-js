@@ -1,5 +1,5 @@
 class Symbol
-  constructor: (@name) ->
+  constructor: (@name, @pos) ->
   toString: -> @name
 
 class Nil
@@ -101,7 +101,7 @@ class @Parser
     return t if @forwards_if 't'
 
     #var
-    return new Symbol(@symbol())
+    return new Symbol(@symbol(), @currentPos())
 
   symbol: ->
     ret = ''
