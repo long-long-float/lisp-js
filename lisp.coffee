@@ -33,6 +33,11 @@ class Environment
     return val
   set: (name, val) -> @variables[name] = val
 
+class ParseError extends Error
+  constructor: (@message) ->
+    @name = @constructor.name
+  toString: -> "[object: #{@name}]"
+
 isAtom = (val) ->
   typeof val == 'string' or typeof val == 'number' or
     val instanceof Nil or val instanceof T
@@ -42,6 +47,9 @@ currentEnv = ->
   throw "envstack is empty" unless envstack.length > 0
   envstack[envstack.length - 1]
 
+error = (klass, msg, pos) ->
+  throw new klass("#{msg} at #{pos.row}:#{pos.column}")
+
 class @Parser
   skip: ->
     @pos++ while @code[@pos]?.match /[ \r\n\t]/
@@ -49,7 +57,7 @@ class @Parser
   isEOF: ->
     @pos == @code.length
 
-  current_pos: ->
+  currentPos: ->
     headToCurrent = @code.substr(0, @pos)
     {
       row: headToCurrent.split("\n").length
@@ -60,8 +68,7 @@ class @Parser
     valid = @code[@pos] && (pattern instanceof RegExp and pattern.test @code[@pos]) || pattern == @code[@pos...@pos + pattern.length]
     if !valid && throwing
       token = if @isEOF() then 'EOF' else @code[@pos]
-      pos = @current_pos()
-      throw "unexpected \"#{token}\", expects \"#{pattern}\" at #{pos.row}:#{pos.column} "
+      error ParseError, "unexpected \"#{token}\", expects \"#{pattern}\"", @currentPos()
 
     return valid
 
