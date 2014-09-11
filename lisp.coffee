@@ -27,16 +27,19 @@ class Lambda
 
 class Environment
   constructor: (@variables) ->
-  get: (name) ->
-    val = @variables[name]
-    throw "undefined #{name}" unless val
-    return val
+  get: (name) -> @variables[name]
   set: (name, val) -> @variables[name] = val
 
-class ParseError extends Error
+class LispError extends Error
   constructor: (@message) ->
     @name = @constructor.name
   toString: -> "[object: #{@name}]"
+
+class ParseError extends LispError
+
+class NameError extends LispError
+
+class NotFunctionError extends LispError
 
 isAtom = (val) ->
   typeof val == 'string' or typeof val == 'number' or
