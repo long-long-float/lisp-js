@@ -203,9 +203,9 @@ class Evaluator
               if lambda = currentEnv().get(funname.name)
                 @exec_lambda(lambda, args)
               else
-                throw "undefined function : #{funname.name}"
+                error NameError, "undefined function \"#{funname.name}\"", funname.pos
           else
-            throw "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function"
+            error NotFunctionError, "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function", funname.pos
       when 'Symbol'
         currentEnv().get(expr.name)
       else
