@@ -49,11 +49,19 @@ class @Parser
   isEOF: ->
     @pos == @code.length
 
+  current_pos: ->
+    headToCurrent = @code.substr(0, @pos)
+    {
+      row: headToCurrent.split("\n").length
+      column: @pos - headToCurrent.lastIndexOf("\n")
+    }
+
   expects: (pattern, throwing = false) ->
     valid = @code[@pos] && (pattern instanceof RegExp and pattern.test @code[@pos]) || pattern == @code[@pos...@pos + pattern.length]
     if !valid && throwing
-      current = if @isEOF() then 'EOF' else @code[@pos]
-      throw "unexpected \"#{current}\", expects \"#{pattern}\""
+      token = if @isEOF() then 'EOF' else @code[@pos]
+      pos = @current_pos()
+      throw "unexpected \"#{token}\", expects \"#{pattern}\" at #{pos.row}:#{pos.column} "
 
     return valid
 
