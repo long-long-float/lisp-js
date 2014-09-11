@@ -23,8 +23,8 @@
           try {
             result = Lisp.eval($('#code').val());
           } catch (e) {
-            $('#result').text('error : ' + e.message);
-            return;
+            $('#result').text('error : ' + e.message + ' (' + e.name + ')');
+            throw e;
           }
           $('#parse-result').text(JSON.stringify(result.ast, null, '    '));
           $('#result').text(JSON.stringify(result.body, null, '    '));
