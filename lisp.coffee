@@ -64,7 +64,7 @@ class @Parser
     headToCurrent = @code.substr(0, @pos)
     {
       row: headToCurrent.split("\n").length
-      column: @pos - headToCurrent.lastIndexOf("\n")
+      column: @pos - headToCurrent.lastIndexOf("\n") - 1
     }
 
   expects: (pattern, throwing = false) ->
