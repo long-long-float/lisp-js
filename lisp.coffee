@@ -1,5 +1,5 @@
 class Symbol
-  constructor: (@name) ->
+  constructor: (@name, @pos) ->
   toString: -> @name
 
 class Nil
@@ -27,11 +27,19 @@ class Lambda
 
 class Environment
   constructor: (@variables) ->
-  get: (name) ->
-    val = @variables[name]
-    throw "undefined #{name}" unless val
-    return val
+  get: (name) -> @variables[name]
   set: (name, val) -> @variables[name] = val
+
+class LispError extends Error
+  constructor: (@message) ->
+    @name = @constructor.name
+  toString: -> "[object: #{@name}]"
+
+class ParseError extends LispError
+
+class NameError extends LispError
+
+class NotFunctionError extends LispError
 
 isAtom = (val) ->
   typeof val == 'string' or typeof val == 'number' or
@@ -42,6 +50,9 @@ currentEnv = ->
   throw "envstack is empty" unless envstack.length > 0
   envstack[envstack.length - 1]
 
+error = (klass, msg, pos) ->
+  throw new klass("#{msg}" + if pos? then " at #{pos.row}:#{pos.column}" else "")
+
 class @Parser
   skip: ->
     @pos++ while @code[@pos]?.match /[ \r\n\t]/
@@ -49,10 +60,18 @@ class @Parser
   isEOF: ->
     @pos == @code.length
 
+  currentPos: ->
+    headToCurrent = @code.substr(0, @pos)
+    {
+      row: headToCurrent.split("\n").length
+      column: @pos - headToCurrent.lastIndexOf("\n") - 1
+    }
+
   expects: (pattern, throwing = false) ->
     valid = @code[@pos] && (pattern instanceof RegExp and pattern.test @code[@pos]) || pattern == @code[@pos...@pos + pattern.length]
     if !valid && throwing
-      throw "unexpected \"#{@code[@pos]}\", expects \"#{pattern}\""
+      token = if @isEOF() then 'EOF' else @code[@pos]
+      error ParseError, "unexpected \"#{token}\", expects \"#{pattern}\"", @currentPos()
 
     return valid
 
@@ -82,7 +101,7 @@ class @Parser
     return t if @forwards_if 't'
 
     #var
-    return new Symbol(@symbol())
+    return new Symbol(@symbol(), @currentPos())
 
   symbol: ->
     ret = ''
@@ -150,10 +169,17 @@ class Evaluator
       when 'SpecialForm'
         args = expr.args
         {
-          'cond': => args.filter((arg) => !(@eval_expr(arg.values[0]) instanceof Nil))[0]?.values[1] || nil
-          'quote': -> args[0]
-          'lambda': -> new Lambda(args[0], args[1])
-          'defun': -> currentEnv().set(args[0].name, new Lambda(args[1], args[2]))
+          'cond': =>
+            for arg in args
+              unless @eval_expr(arg.values[0]) instanceof Nil
+                return arg.values[1]
+            return nil
+          'quote': ->
+            args[0]
+          'lambda': ->
+            new Lambda(args[0], args[1])
+          'defun': ->
+            currentEnv().set(args[0].name, new Lambda(args[1], args[2]))
         }[expr.name.name]()
 
       when 'CallFun'
@@ -177,9 +203,9 @@ class Evaluator
               if lambda = currentEnv().get(funname.name)
                 @exec_lambda(lambda, args)
               else
-                throw "undefined function : #{funname.name}"
+                error NameError, "undefined function \"#{funname.name}\"", funname.pos
           else
-            throw "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function"
+            error NotFunctionError, "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function", funname.pos
       when 'Symbol'
         currentEnv().get(expr.name)
       else
@@ -195,6 +221,7 @@ class @Lisp
     {ast: ast, body: (new Evaluator).eval(ast)}
 
 #support script tag
-$ ->
-  $('script[type="text/lisp"]').each ->
-    Lisp.eval $(this).text()
+if $?
+  $ ->
+    $('script[type="text/lisp"]').each ->
+      Lisp.eval $(this).text()
