@@ -51,7 +51,7 @@ currentEnv = ->
   envstack[envstack.length - 1]
 
 error = (klass, msg, pos) ->
-  throw new klass("#{msg} at #{pos.row}:#{pos.column}")
+  throw new klass("#{msg}" + if pos? then " at #{pos.row}:#{pos.column}" else "")
 
 class @Parser
   skip: ->
