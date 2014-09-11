@@ -52,10 +52,7 @@ class @Parser
   expects: (pattern, throwing = false) ->
     valid = @code[@pos] && (pattern instanceof RegExp and pattern.test @code[@pos]) || pattern == @code[@pos...@pos + pattern.length]
     if !valid && throwing
-      current = if @pos < @code.length
-          @code[@pos]
-        else
-          'EOF'
+      current = if @isEOF() then 'EOF' else @code[@pos]
       throw "unexpected \"#{current}\", expects \"#{pattern}\""
 
     return valid
