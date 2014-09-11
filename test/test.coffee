@@ -65,3 +65,17 @@ describe 'Lisp', ->
         (defun sum (x y) (+ x y))
         (sum 1 2)
         """).body).to.equal('3')
+
+    it 'should can assign value', ->
+      expect(Lisp.eval("""
+        (setq a 10)
+        a
+      """).body).to.equal('10')
+
+    it 'should can define and use macro', ->
+      expect(Lisp.eval("""
+        (defmacro nil! (var)
+          (list 'setq var nil))
+        (nil! a)
+        a
+        """).body).to.equal('nil')
