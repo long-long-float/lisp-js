@@ -57,6 +57,8 @@ currentEnv = ->
 error = (klass, msg, pos) ->
   throw new klass("#{msg}" + if pos? then " at #{pos.row}:#{pos.column}" else "")
 
+SYMBOL_PATTERN = /[\w!#$%&=-~^|*+<>?_]/
+
 class @Parser
   skip: ->
     @pos++ while @code[@pos]?.match /[ \r\n\t]/
@@ -109,7 +111,7 @@ class @Parser
 
   symbol: ->
     ret = ''
-    ret += @code[@pos++] while @expects /[\w!#$%&=-~^|*+<>?_]/
+    ret += @code[@pos++] while @expects SYMBOL_PATTERN
     return ret
 
   list: ->
