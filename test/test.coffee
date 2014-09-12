@@ -74,8 +74,8 @@ describe 'Lisp', ->
 
     it 'should can define and use macro', ->
       expect(Lisp.eval("""
-        (defmacro nil! (var)
+        (defmacro setnil! (var)
           (list 'setq var nil))
-        (nil! a)
+        (setnil! a)
         a
         """).body).to.equal('nil')
