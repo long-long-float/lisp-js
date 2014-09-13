@@ -15,13 +15,8 @@ class List
 
 class CallFun
   constructor: (@funname, @args) ->
-  toString: -> "(#{@funname} #{@values.map((v) -> v.toString()).join(' ')})"
-
-# TODO: 下の実装と離れてしまっているのをどうにかしたい
-SF_NAMES = ['cond', 'quote', 'lambda', 'defun', 'setq', 'defmacro']
-class SpecialForm
-  constructor: (@name, @args) ->
-  toString: -> "(#{@name} #{@args.map((v) -> v.toString()).join(' ')})"
+    @values = [@funname, @args...]
+  toString: -> "(#{@values.map((v) -> v.toString()).join(' ')})"
 
 class Lambda
   constructor: (@params, @body) ->
@@ -128,24 +123,22 @@ class @Parser
     args = []
     funname = @expr()
 
-    isSF = SF_NAMES.indexOf(funname.name) != -1
     until @expects(')') or @isEOF()
       @skip()
-      args.push @expr(isSF)
+      args.push @expr()
 
     @forwards ')'
 
-    klass = if isSF then SpecialForm else CallFun
-    return new klass(funname, args)
+    return new CallFun(funname, args)
 
-  expr: (isSF) ->
-    if @expects("'") or isSF #value
-      @forwards "'" unless isSF
+  expr:  ->
+    if @expects("'") #value
+      @forwards "'"
       if @expects '(' #list
         return @list()
       else #atom
         return @atom()
-    else if @expects '(' #calling function or special form
+    else if @expects '(' #calling function
       return @call_fun()
     else #atom
       return @atom()
