@@ -165,9 +165,10 @@ class Evaluator
 
   eval_expr: (expr) ->
     switch expr.constructor.name
-      when 'SpecialForm'
+      when 'CallFun'
         args = expr.args
-        {
+
+        SPECIAL_FORMS = {
           'cond': =>
             for arg in args
               unless @eval_expr(arg.values[0]) instanceof Nil
@@ -184,11 +185,14 @@ class Evaluator
             currentEnv().set(args[0].name, value)
           'defmacro': ->
             currentEnv().setMacro(args[0].name, new Lambda(args[1], args[2]))
-        }[expr.name.name]()
+        }
 
-      when 'CallFun'
         funname = expr.funname
-        args = unless currentEnv().getMacro(funname)
+
+        if sf = SPECIAL_FORMS[funname.name]
+          return sf(expr.args)
+
+        args = unless currentEnv().getMacro(funname.name)
               expr.args.map (arg) => @eval_expr(arg)
             else
               expr.args
