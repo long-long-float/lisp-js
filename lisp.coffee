@@ -227,7 +227,10 @@ class Evaluator
           else
             error NotFunctionError, "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function", funname.pos
       when 'Symbol'
-        currentEnv().get(expr.name)
+        value = currentEnv().get(expr.name)
+        unless value
+          error NameError, "undefined valiable \"#{expr.name}\"", expr.pos
+        value
       else
         expr
 
