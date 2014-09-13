@@ -194,14 +194,19 @@ class Evaluator
         }[expr.name.name]()
 
       when 'CallFun'
-        args = expr.args.map (arg) => @eval_expr(arg)
-        funname = if expr.funname instanceof SpecialForm then @eval_expr(expr.funname) else expr.funname
+        funname = expr.funname
+        args = unless currentEnv().getMacro(funname)
+              expr.args.map (arg) => @eval_expr(arg)
+            else
+              expr.args
         switch funname.constructor.name
           when 'Lambda'
             @exec_lambda(funname)
           when 'Symbol'
             funcs = {
-              'list': -> args
+              'list': ->
+                [name, args...] = args
+                new CallFun name, args
               '+': -> args.reduce(((sum, n) -> sum + n), 0)
               'car': -> args[0].values[0]
               'cdr': -> new List args[0].values[1..]
