@@ -217,7 +217,10 @@ class Evaluator
             if funs = funcs[funname.name]
               funs()
             else
-              if lambda = currentEnv().get(funname.name)
+              if macro = currentEnv().getMacro(funname.name)
+                expr = @exec_lambda(macro, args)
+                @eval_expr(expr)
+              else if lambda = currentEnv().get(funname.name)
                 @exec_lambda(lambda, args)
               else
                 error NameError, "undefined function \"#{funname.name}\"", funname.pos
