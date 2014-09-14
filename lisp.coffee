@@ -52,7 +52,7 @@ currentEnv = ->
 error = (klass, msg, pos) ->
   throw new klass("#{msg}" + if pos? then " at #{pos.row}:#{pos.column}" else "")
 
-SYMBOL_PATTERN = /[\w!#$%&=-~^|*+<>?_]/
+SYMBOL_PATTERN = /[\w+\-*/!#$%&=~^|<>?_]/
 
 class @Parser
   skip: ->
@@ -205,6 +205,9 @@ class Evaluator
                 [name, args...] = args
                 new CallFun name, args
               '+': -> args.reduce(((sum, n) -> sum + n), 0)
+              '-': -> args[1...args.length].reduce(((sub, n) -> sub - n), args[0]) # Array#reduce includes first value
+              '*': -> args.reduce(((mul, n) -> mul * n), 1)
+              '/': -> args[1...args.length].reduce(((div, n) -> div / n), args[0])
               'car': -> args[0].values[0]
               'cdr': -> new List args[0].values[1..]
               'cons': -> new List [args[0], args[1].values...]

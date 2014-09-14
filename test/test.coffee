@@ -64,6 +64,15 @@ describe 'Lisp', ->
       it 'should return sum of arguments', ->
         expect(Lisp.eval('(+ 1 2 3)').body).to.equal('6')
 
+      it 'should return subtraction of arguments', ->
+        expect(Lisp.eval('(- 1 2 3)').body).to.equal('-4')
+
+      it 'should return multiplication of arguments', ->
+        expect(Lisp.eval('(* 1 2 3)').body).to.equal('6')
+
+      it 'should return division of arguments', ->
+        expect(Lisp.eval('(/ 12 2 3)').body).to.equal('2')
+
       it 'should return first of list', ->
         expect(Lisp.eval('(car \'(1 2 3))').body).to.equal('1')
 
