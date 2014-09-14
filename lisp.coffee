@@ -225,7 +225,7 @@ class Evaluator
               else
                 error NameError, "undefined function \"#{funname.name}\"", funname.pos
           else
-            error NotFunctionError, "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function", funname.pos
+            error NotFunctionError, "#{funname.toString()}(#{funname.constructor.name}) is not a function", funname.pos
       when 'Symbol'
         if expr.quoted
           return expr
