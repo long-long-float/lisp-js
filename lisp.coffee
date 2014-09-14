@@ -1,6 +1,6 @@
 class Symbol
-  constructor: (@name, @pos) ->
-  toString: -> @name
+  constructor: (@name, @quoted, @pos) ->
+  toString: -> "#{if @quoted then "'" else ""}#{@name}"
 
 class Nil
   toString: -> 'nil'
@@ -15,20 +15,19 @@ class List
 
 class CallFun
   constructor: (@funname, @args) ->
-  toString: -> "(#{@funname} #{@values.map((v) -> v.toString()).join(' ')})"
-
-SF_NAMES = ['cond', 'quote', 'lambda', 'defun']
-class SpecialForm
-  constructor: (@name, @args) ->
-  toString: -> "(#{@name} #{@args.map((v) -> v.toString()).join(' ')})"
+    @values = [@funname, @args...]
+  toString: -> "(#{@values.map((v) -> v.toString()).join(' ')})"
 
 class Lambda
   constructor: (@params, @body) ->
 
 class Environment
   constructor: (@variables) ->
-  get: (name) -> @variables[name]
+    @macros = {}
+  get: (name)      -> @variables[name]
   set: (name, val) -> @variables[name] = val
+  getMacro: (name)        -> @macros[name]
+  setMacro: (name, macro) -> @macros[name] = macro
 
 class LispError extends Error
   constructor: (@message) ->
@@ -52,6 +51,8 @@ currentEnv = ->
 
 error = (klass, msg, pos) ->
   throw new klass("#{msg}" + if pos? then " at #{pos.row}:#{pos.column}" else "")
+
+SYMBOL_PATTERN = /[\w!#$%&=-~^|*+<>?_]/
 
 class @Parser
   skip: ->
@@ -83,7 +84,7 @@ class @Parser
   forwards_if: (pattern) ->
     @forwards pattern if @expects pattern
 
-  atom: ->
+  atom: (quoted) ->
     #number
     if @expects /[0-9]/
       num = ''
@@ -101,11 +102,11 @@ class @Parser
     return t if @forwards_if 't'
 
     #var
-    return new Symbol(@symbol(), @currentPos())
+    return new Symbol(@symbol(), quoted, @currentPos())
 
   symbol: ->
     ret = ''
-    ret += @code[@pos++] while @expects /[\w!#$%&=-~^|*+<>?_]/
+    ret += @code[@pos++] while @expects SYMBOL_PATTERN
     return ret
 
   list: ->
@@ -122,27 +123,25 @@ class @Parser
     args = []
     funname = @expr()
 
-    isSF = SF_NAMES.indexOf(funname.name) != -1
     until @expects(')') or @isEOF()
       @skip()
-      args.push @expr(isSF)
+      args.push @expr()
 
     @forwards ')'
 
-    klass = if isSF then SpecialForm else CallFun
-    return new klass(funname, args)
+    return new CallFun(funname, args)
 
-  expr: (isSF) ->
-    if @expects("'") or isSF #value
-      @forwards "'" unless isSF
+  expr:  ->
+    if @expects("'") #value
+      @forwards "'"
       if @expects '(' #list
         return @list()
-      else #atom
-        return @atom()
-    else if @expects '(' #calling function or special form
+      else #quoted atom
+        return @atom(true)
+    else if @expects '(' #calling function
       return @call_fun()
     else #atom
-      return @atom()
+      return @atom(false)
 
   program: ->
     ret = []
@@ -160,15 +159,16 @@ class Evaluator
     envstack.push new Environment(lambda.params.values.reduce(
       ((env, param, index) -> env[param.name] = args[index]; env), {}))
     [name, args...] = lambda.body.values
-    ret = @eval_expr(new CallFun(name, args)) #とりあえず
+    ret = @eval_expr(new CallFun(name, args)) #TODO: とりあえず
     envstack.pop()
     return ret
 
   eval_expr: (expr) ->
     switch expr.constructor.name
-      when 'SpecialForm'
+      when 'CallFun'
         args = expr.args
-        {
+
+        SPECIAL_FORMS = {
           'cond': =>
             for arg in args
               unless @eval_expr(arg.values[0]) instanceof Nil
@@ -180,17 +180,31 @@ class Evaluator
             new Lambda(args[0], args[1])
           'defun': ->
             currentEnv().set(args[0].name, new Lambda(args[1], args[2]))
-        }[expr.name.name]()
+          'setq': =>
+            value = @eval_expr(args[1])
+            currentEnv().set(args[0].name, value)
+          'defmacro': ->
+            currentEnv().setMacro(args[0].name, new Lambda(args[1], args[2]))
+        }
 
-      when 'CallFun'
-        args = expr.args.map (arg) => @eval_expr(arg)
-        funname = if expr.funname instanceof SpecialForm then @eval_expr(expr.funname) else expr.funname
+        funname = expr.funname
+
+        if sf = SPECIAL_FORMS[funname.name]
+          return sf(expr.args)
+
+        args = unless currentEnv().getMacro(funname.name)
+              expr.args.map (arg) => @eval_expr(arg)
+            else
+              expr.args
         switch funname.constructor.name
           when 'Lambda'
             @exec_lambda(funname)
           when 'Symbol'
             funcs = {
-              '+': -> args.reduce(((sum, n) -> sum + n), 0),
+              'list': ->
+                [name, args...] = args
+                new CallFun name, args
+              '+': -> args.reduce(((sum, n) -> sum + n), 0)
               'car': -> args[0].values[0]
               'cdr': -> new List args[0].values[1..]
               'cons': -> new List [args[0], args[1].values...]
@@ -200,14 +214,23 @@ class Evaluator
             if funs = funcs[funname.name]
               funs()
             else
-              if lambda = currentEnv().get(funname.name)
+              if macro = currentEnv().getMacro(funname.name)
+                expr = @exec_lambda(macro, args)
+                @eval_expr(expr)
+              else if lambda = currentEnv().get(funname.name)
                 @exec_lambda(lambda, args)
               else
                 error NameError, "undefined function \"#{funname.name}\"", funname.pos
           else
             error NotFunctionError, "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function", funname.pos
       when 'Symbol'
-        currentEnv().get(expr.name)
+        if expr.quoted
+          return expr
+
+        value = currentEnv().get(expr.name)
+        unless value
+          error NameError, "undefined valiable \"#{expr.name}\"", expr.pos
+        value
       else
         expr
 
