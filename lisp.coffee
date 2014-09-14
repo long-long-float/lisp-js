@@ -1,6 +1,6 @@
 class Symbol
-  constructor: (@name, @pos) ->
-  toString: -> @name
+  constructor: (@name, @quoted, @pos) ->
+  toString: -> "#{if @quoted then "'" else ""}#{@name}"
 
 class Nil
   toString: -> 'nil'
@@ -84,7 +84,7 @@ class @Parser
   forwards_if: (pattern) ->
     @forwards pattern if @expects pattern
 
-  atom: ->
+  atom: (quoted) ->
     #number
     if @expects /[0-9]/
       num = ''
@@ -102,7 +102,7 @@ class @Parser
     return t if @forwards_if 't'
 
     #var
-    return new Symbol(@symbol(), @currentPos())
+    return new Symbol(@symbol(), quoted, @currentPos())
 
   symbol: ->
     ret = ''
@@ -136,12 +136,12 @@ class @Parser
       @forwards "'"
       if @expects '(' #list
         return @list()
-      else #atom
-        return @atom()
+      else #quoted atom
+        return @atom(true)
     else if @expects '(' #calling function
       return @call_fun()
     else #atom
-      return @atom()
+      return @atom(false)
 
   program: ->
     ret = []
@@ -224,6 +224,9 @@ class Evaluator
           else
             error NotFunctionError, "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function", funname.pos
       when 'Symbol'
+        if expr.quoted
+          return expr
+
         value = currentEnv().get(expr.name)
         unless value
           error NameError, "undefined valiable \"#{expr.name}\"", expr.pos
