@@ -177,17 +177,17 @@ class Evaluator
           'quote': ->
             args[0]
           'lambda': ->
-            new Lambda(args[0], args[1...args.length])
+            new Lambda(args[0], args[1..])
           'defun': ->
-            currentEnv().set(args[0].name, new Lambda(args[1], args[2...args.length]))
+            currentEnv().set(args[0].name, new Lambda(args[1], args[2..]))
           'setq': =>
             value = @eval_expr(args[1])
             currentEnv().set(args[0].name, value)
           'defmacro': ->
-            currentEnv().setMacro(args[0].name, new Lambda(args[1], args[2...args.length]))
+            currentEnv().setMacro(args[0].name, new Lambda(args[1], args[2..]))
           'let': =>
             @exec_lambda(
-              new Lambda(new List(args[0].values.map((pair) -> pair.values[0])), args[1...args.length]),
+              new Lambda(new List(args[0].values.map((pair) -> pair.values[0])), args[1..]),
               args[0].values.map((pair) -> pair.values[1]))
         }
 
@@ -209,9 +209,9 @@ class Evaluator
                 [name, args...] = args
                 new CallFun name, args
               '+': -> args.reduce(((sum, n) -> sum + n), 0)
-              '-': -> args[1...args.length].reduce(((sub, n) -> sub - n), args[0]) # Array#reduce includes first value
+              '-': -> args[1..].reduce(((sub, n) -> sub - n), args[0]) # Array#reduce includes first value
               '*': -> args.reduce(((mul, n) -> mul * n), 1)
-              '/': -> args[1...args.length].reduce(((div, n) -> div / n), args[0])
+              '/': -> args[1..].reduce(((div, n) -> div / n), args[0])
               'car': -> args[0].values[0]
               'cdr': -> new List args[0].values[1..]
               'cons': -> new List [args[0], args[1].values...]
