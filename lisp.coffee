@@ -19,7 +19,7 @@ class CallFun
   toString: -> "(#{@values.map((v) -> v.toString()).join(' ')})"
 
 class Lambda
-  constructor: (@params, @body) ->
+  constructor: (@params, @exprs) ->
 
 class Environment
   constructor: (@variables) ->
@@ -158,8 +158,8 @@ class Evaluator
   exec_lambda: (lambda, args) ->
     envstack.push new Environment(lambda.params.values.reduce(
       ((env, param, index) -> env[param.name] = args[index]; env), {}))
-    [name, args...] = lambda.body.values
-    ret = @eval_expr(new CallFun(name, args)) #TODO: とりあえず
+    ret = lambda.exprs.map((expr) =>
+      @eval_expr(expr))[0]
     envstack.pop()
     return ret
 
@@ -177,14 +177,18 @@ class Evaluator
           'quote': ->
             args[0]
           'lambda': ->
-            new Lambda(args[0], args[1])
+            new Lambda(args[0], args[1...args.length])
           'defun': ->
-            currentEnv().set(args[0].name, new Lambda(args[1], args[2]))
+            currentEnv().set(args[0].name, new Lambda(args[1], args[2...args.length]))
           'setq': =>
             value = @eval_expr(args[1])
             currentEnv().set(args[0].name, value)
           'defmacro': ->
-            currentEnv().setMacro(args[0].name, new Lambda(args[1], args[2]))
+            currentEnv().setMacro(args[0].name, new Lambda(args[1], args[2...args.length]))
+          'let': =>
+            @exec_lambda(
+              new Lambda(new List(args[0].values.map((pair) -> pair.values[0])), args[1...args.length]),
+              args[0].values.map((pair) -> pair.values[1]))
         }
 
         funname = expr.funname

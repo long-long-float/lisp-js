@@ -60,6 +60,11 @@ describe 'Lisp', ->
           a
           """).body).to.equal('nil')
 
+      it 'should be able to use valiable in let', ->
+        expect(Lisp.eval("""
+          (let ((a 10)) a)
+        """).body).to.equal('10')
+
     describe 'basic functions', ->
       it 'should return sum of arguments', ->
         expect(Lisp.eval('(+ 1 2 3)').body).to.equal('6')
