@@ -80,6 +80,9 @@ class @Parser
 
     return valid
 
+  expects_token: (token) ->
+    @code[@pos] and token == @code[@pos...@pos + token.length] and not SYMBOL_PATTERN.test @code[@pos + token.length]
+
   forwards: (pattern) ->
     @expects pattern, true
     @pos += if pattern instanceof RegExp then 1 else pattern.length
@@ -101,10 +104,14 @@ class @Parser
       @forwards '"'
       return str
 
-    return nil if @forwards_if 'nil'
-    return t if @forwards_if 't'
+    if @expects_token 'nil'
+      @forwards 'nil'
+      return nil
 
-    #var
+    if @expects_token 't'
+      @forwards 't'
+      return t
+
     return new Symbol(@symbol(), quoted, @currentPos())
 
   symbol: ->
