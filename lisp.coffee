@@ -82,7 +82,6 @@ class @Parser
 
   forwards: (pattern) ->
     @expects pattern, true
-    @code[@pos]
     @pos += if pattern instanceof RegExp then 1 else pattern.length
 
   forwards_if: (pattern) ->
@@ -136,16 +135,15 @@ class @Parser
     return new CallFun(funname, args)
 
   expr:  ->
-    if @expects("'") #value
-      @forwards "'"
+    if @forwards_if("'") #value
       if @expects '(' #list
-        return @list()
+        @list()
       else #quoted atom
-        return @atom(true)
+        @atom(true)
     else if @expects '(' #calling function
-      return @call_fun()
+      @call_fun()
     else #atom
-      return @atom(false)
+      @atom(false)
 
   program: ->
     ret = []
@@ -162,8 +160,7 @@ class Evaluator
   exec_lambda: (lambda, args) ->
     envstack.push new Environment(lambda.params.values.reduce(
       ((env, param, index) -> env[param.name] = args[index]; env), {}))
-    ret = lambda.exprs.map((expr) =>
-      @eval_expr(expr))[0]
+    ret = lambda.exprs.map((expr) => @eval_expr(expr))[0]
     envstack.pop()
     return ret
 
@@ -195,53 +192,63 @@ class Evaluator
               args[0].values.map((pair) -> pair.values[1]))
         }
 
+        BASIC_FUNCTIONS = {
+          'list': ->
+            [name, args...] = args
+            new CallFun name, args
+          '+': -> args.reduce(((sum, n) -> sum + n), 0)
+          '-': -> args[1..].reduce(((sub, n) -> sub - n), args[0]) # Array#reduce includes first value
+          '*': -> args.reduce(((mul, n) -> mul * n), 1)
+          '/': -> args[1..].reduce(((div, n) -> div / n), args[0])
+          'car': ->
+            if args[0] instanceof Nil
+              nil
+            else
+              args[0].values[0]
+          'cdr': ->
+            if args[0] instanceof Nil
+              nil
+            else
+              new List args[0].values[1..]
+          'cons': -> new List [args[0], args[1].values...]
+          'eq': -> if args[0] == args[1] then t else nil
+          'atom': -> if isAtom(args[0]) then t else nil
+        }
+
         funname = expr.funname
 
+        # lambda
+        if funname.constructor.name == 'Lambda'
+          return @exec_lambda(funname)
+
+        # special forms
         if sf = SPECIAL_FORMS[funname.name]
-          return sf(expr.args)
+          return sf()
 
         args = unless currentEnv().getMacro(funname.name)
               expr.args.map (arg) => @eval_expr(arg)
             else
               expr.args
-        switch funname.constructor.name
-          when 'Lambda'
-            @exec_lambda(funname)
-          when 'Symbol'
-            funcs = {
-              'list': ->
-                [name, args...] = args
-                new CallFun name, args
-              '+': -> args.reduce(((sum, n) -> sum + n), 0)
-              '-': -> args[1..].reduce(((sub, n) -> sub - n), args[0]) # Array#reduce includes first value
-              '*': -> args.reduce(((mul, n) -> mul * n), 1)
-              '/': -> args[1..].reduce(((div, n) -> div / n), args[0])
-              'car': ->
-                if args[0] instanceof Nil
-                  nil
-                else
-                  args[0].values[0]
-              'cdr': ->
-                if args[0] instanceof Nil
-                  nil
-                else
-                  new List args[0].values[1..]
-              'cons': -> new List [args[0], args[1].values...]
-              'eq': -> if args[0] == args[1] then t else nil
-              'atom': -> if isAtom(args[0]) then t else nil
-            }
-            if funs = funcs[funname.name]
-              funs()
-            else
-              if macro = currentEnv().getMacro(funname.name)
-                expr = @exec_lambda(macro, args)
-                @eval_expr(expr)
-              else if lambda = currentEnv().get(funname.name)
-                @exec_lambda(lambda, args)
-              else
-                error NameError, "undefined function \"#{funname.name}\"", funname.pos
-          else
-            error NotFunctionError, "#{funname.toString()}(#{funname.constructor.name}) is not a function", funname.pos
+
+        # basic function
+        if func = BASIC_FUNCTIONS[funname.name]
+          return func()
+
+        # macro
+        if macro = currentEnv().getMacro(funname.name)
+          expr = @exec_lambda(macro, args)
+          return @eval_expr(expr)
+
+        # defined function
+        if lambda = currentEnv().get(funname.name)
+          return @exec_lambda(lambda, args)
+
+        # function name is not symbol
+        unless funname.constructor.name == 'Symbol'
+          error NotFunctionError, "#{funname.toString()}(#{funname.constructor.name}) is not a function", funname.pos
+
+        # method not found
+        error NameError, "undefined function \"#{funname.name}\"", funname.pos
       when 'Symbol'
         if expr.quoted
           return expr
