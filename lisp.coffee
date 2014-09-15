@@ -3,10 +3,14 @@ class Symbol
   toString: -> "#{if @quoted then "'" else ""}#{@name}"
 
 class Nil
+  constructor: -> @values = []
   toString: -> 'nil'
+
 nil = new Nil
+
 class T
   toString: -> 't'
+
 t = new T
 
 class List
@@ -212,8 +216,16 @@ class Evaluator
               '-': -> args[1..].reduce(((sub, n) -> sub - n), args[0]) # Array#reduce includes first value
               '*': -> args.reduce(((mul, n) -> mul * n), 1)
               '/': -> args[1..].reduce(((div, n) -> div / n), args[0])
-              'car': -> args[0].values[0]
-              'cdr': -> new List args[0].values[1..]
+              'car': ->
+                if args[0] instanceof Nil
+                  nil
+                else
+                  args[0].values[0]
+              'cdr': ->
+                if args[0] instanceof Nil
+                  nil
+                else
+                  new List args[0].values[1..]
               'cons': -> new List [args[0], args[1].values...]
               'eq': -> if args[0] == args[1] then t else nil
               'atom': -> if isAtom(args[0]) then t else nil
@@ -243,7 +255,7 @@ class Evaluator
 
   eval: (ast) ->
     envstack.push new Environment({})
-    return (@eval_expr(expr) for expr in ast).pop().toString()
+    (@eval_expr(expr) for expr in ast).pop().toString()
 
 class @Lisp
   @eval: (code) ->

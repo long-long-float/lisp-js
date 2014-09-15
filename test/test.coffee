@@ -21,6 +21,11 @@ describe 'Lisp', ->
       expect -> p.parse('(').to.throw()
 
   describe 'evaluator', ->
+    it 'should treat nil as empty list', ->
+      expect(Lisp.eval("(car nil)").body).to.equal("nil")
+      expect(Lisp.eval("(cdr nil)").body).to.equal("nil")
+      expect(Lisp.eval("(cons 10 nil)").body).to.equal("(10)")
+
     describe 'special forms', ->
       it 'should return first value', ->
         expect(Lisp.eval("""
