@@ -7,21 +7,27 @@
   <body>
     <h1>Lisp.js</h1>
     <h2>code</h2>
-    <textarea id="code"></textarea>
+    <div id="code"></div>
     <button id="exec-btn">exec</button>
     <h2>result(parse)</h2>
     <pre id="parse-result"></pre>
     <h2>result</h2>
     <pre id="result"></pre>
 
-    <script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
+    <script src="jquery-2.1.0.min.js"></script>
+    <script src="ace/ace.js"></script>
     <script src="lisp.js"></script>
     <script>
       $(function () {
+        var editor = ace.edit("code");
+        editor.setOptions({ maxLines: 15  });
+        editor.setTheme("ace/theme/chrome");
+        editor.getSession().setMode("ace/mode/lisp");
+
         $('#exec-btn').click(function(){
           var result;
           try {
-            result = Lisp.eval($('#code').val());
+            result = Lisp.eval(editor.getValue());
           } catch (e) {
             $('#result').text('error : ' + e.message + ' (' + e.name + ')');
             throw e;

@@ -1,12 +1,16 @@
 class Symbol
-  constructor: (@name, @pos) ->
-  toString: -> @name
+  constructor: (@name, @quoted, @pos) ->
+  toString: -> "#{if @quoted then "'" else ""}#{@name}"
 
 class Nil
+  constructor: -> @values = []
   toString: -> 'nil'
+
 nil = new Nil
+
 class T
   toString: -> 't'
+
 t = new T
 
 class List
@@ -15,20 +19,19 @@ class List
 
 class CallFun
   constructor: (@funname, @args) ->
-  toString: -> "(#{@funname} #{@values.map((v) -> v.toString()).join(' ')})"
-
-SF_NAMES = ['cond', 'quote', 'lambda', 'defun']
-class SpecialForm
-  constructor: (@name, @args) ->
-  toString: -> "(#{@name} #{@args.map((v) -> v.toString()).join(' ')})"
+    @values = [@funname, @args...]
+  toString: -> "(#{@values.map((v) -> v.toString()).join(' ')})"
 
 class Lambda
-  constructor: (@params, @body) ->
+  constructor: (@params, @exprs) ->
 
 class Environment
   constructor: (@variables) ->
-  get: (name) -> @variables[name]
+    @macros = {}
+  get: (name)      -> @variables[name]
   set: (name, val) -> @variables[name] = val
+  getMacro: (name)        -> @macros[name]
+  setMacro: (name, macro) -> @macros[name] = macro
 
 class LispError extends Error
   constructor: (@message) ->
@@ -53,6 +56,8 @@ currentEnv = ->
 error = (klass, msg, pos) ->
   throw new klass("#{msg}" + if pos? then " at #{pos.row}:#{pos.column}" else "")
 
+SYMBOL_PATTERN = /[\w+\-*/!#$%&=~^|<>?_]/
+
 class @Parser
   skip: ->
     @pos++ while @code[@pos]?.match /[ \r\n\t]/
@@ -75,15 +80,17 @@ class @Parser
 
     return valid
 
+  expects_token: (token) ->
+    @code[@pos] and token == @code[@pos...@pos + token.length] and not SYMBOL_PATTERN.test @code[@pos + token.length]
+
   forwards: (pattern) ->
     @expects pattern, true
-    @code[@pos]
     @pos += if pattern instanceof RegExp then 1 else pattern.length
 
   forwards_if: (pattern) ->
     @forwards pattern if @expects pattern
 
-  atom: ->
+  atom: (quoted) ->
     #number
     if @expects /[0-9]/
       num = ''
@@ -97,15 +104,19 @@ class @Parser
       @forwards '"'
       return str
 
-    return nil if @forwards_if 'nil'
-    return t if @forwards_if 't'
+    if @expects_token 'nil'
+      @forwards 'nil'
+      return nil
 
-    #var
-    return new Symbol(@symbol(), @currentPos())
+    if @expects_token 't'
+      @forwards 't'
+      return t
+
+    return new Symbol(@symbol(), quoted, @currentPos())
 
   symbol: ->
     ret = ''
-    ret += @code[@pos++] while @expects /[\w!#$%&=-~^|*+<>?_]/
+    ret += @code[@pos++] while @expects SYMBOL_PATTERN
     return ret
 
   list: ->
@@ -122,27 +133,24 @@ class @Parser
     args = []
     funname = @expr()
 
-    isSF = SF_NAMES.indexOf(funname.name) != -1
     until @expects(')') or @isEOF()
       @skip()
-      args.push @expr(isSF)
+      args.push @expr()
 
     @forwards ')'
 
-    klass = if isSF then SpecialForm else CallFun
-    return new klass(funname, args)
+    return new CallFun(funname, args)
 
-  expr: (isSF) ->
-    if @expects("'") or isSF #value
-      @forwards "'" unless isSF
+  expr:  ->
+    if @forwards_if("'") #value
       if @expects '(' #list
-        return @list()
-      else #atom
-        return @atom()
-    else if @expects '(' #calling function or special form
-      return @call_fun()
+        @list()
+      else #quoted atom
+        @atom(true)
+    else if @expects '(' #calling function
+      @call_fun()
     else #atom
-      return @atom()
+      @atom(false)
 
   program: ->
     ret = []
@@ -159,16 +167,16 @@ class Evaluator
   exec_lambda: (lambda, args) ->
     envstack.push new Environment(lambda.params.values.reduce(
       ((env, param, index) -> env[param.name] = args[index]; env), {}))
-    [name, args...] = lambda.body.values
-    ret = @eval_expr(new CallFun(name, args)) #とりあえず
+    ret = lambda.exprs.map((expr) => @eval_expr(expr))[0]
     envstack.pop()
     return ret
 
   eval_expr: (expr) ->
     switch expr.constructor.name
-      when 'SpecialForm'
+      when 'CallFun'
         args = expr.args
-        {
+
+        SPECIAL_FORMS = {
           'cond': =>
             for arg in args
               unless @eval_expr(arg.values[0]) instanceof Nil
@@ -177,37 +185,85 @@ class Evaluator
           'quote': ->
             args[0]
           'lambda': ->
-            new Lambda(args[0], args[1])
+            new Lambda(args[0], args[1..])
           'defun': ->
-            currentEnv().set(args[0].name, new Lambda(args[1], args[2]))
-        }[expr.name.name]()
+            currentEnv().set(args[0].name, new Lambda(args[1], args[2..]))
+          'setq': =>
+            value = @eval_expr(args[1])
+            currentEnv().set(args[0].name, value)
+          'defmacro': ->
+            currentEnv().setMacro(args[0].name, new Lambda(args[1], args[2..]))
+          'let': =>
+            @exec_lambda(
+              new Lambda(new List(args[0].values.map((pair) -> pair.values[0])), args[1..]),
+              args[0].values.map((pair) -> pair.values[1]))
+        }
 
-      when 'CallFun'
-        args = expr.args.map (arg) => @eval_expr(arg)
-        funname = if expr.funname instanceof SpecialForm then @eval_expr(expr.funname) else expr.funname
-        switch funname.constructor.name
-          when 'Lambda'
-            @exec_lambda(funname)
-          when 'Symbol'
-            funcs = {
-              '+': -> args.reduce(((sum, n) -> sum + n), 0),
-              'car': -> args[0].values[0]
-              'cdr': -> new List args[0].values[1..]
-              'cons': -> new List [args[0], args[1].values...]
-              'eq': -> if args[0] == args[1] then t else nil
-              'atom': -> if isAtom(args[0]) then t else nil
-            }
-            if funs = funcs[funname.name]
-              funs()
+        BASIC_FUNCTIONS = {
+          'list': ->
+            [name, args...] = args
+            new CallFun name, args
+          '+': -> args.reduce(((sum, n) -> sum + n), 0)
+          '-': -> args[1..].reduce(((sub, n) -> sub - n), args[0]) # Array#reduce includes first value
+          '*': -> args.reduce(((mul, n) -> mul * n), 1)
+          '/': -> args[1..].reduce(((div, n) -> div / n), args[0])
+          'car': ->
+            if args[0] instanceof Nil
+              nil
             else
-              if lambda = currentEnv().get(funname.name)
-                @exec_lambda(lambda, args)
-              else
-                error NameError, "undefined function \"#{funname.name}\"", funname.pos
-          else
-            error NotFunctionError, "#{JSON.stringify(funname)}(#{funname.constructor.name}) is not a function", funname.pos
+              args[0].values[0]
+          'cdr': ->
+            if args[0] instanceof Nil
+              nil
+            else
+              new List args[0].values[1..]
+          'cons': -> new List [args[0], args[1].values...]
+          'eq': -> if args[0] == args[1] then t else nil
+          'atom': -> if isAtom(args[0]) then t else nil
+        }
+
+        funname = expr.funname
+
+        # lambda
+        if funname.constructor.name == 'Lambda'
+          return @exec_lambda(funname)
+
+        # special forms
+        if sf = SPECIAL_FORMS[funname.name]
+          return sf()
+
+        args = unless currentEnv().getMacro(funname.name)
+              expr.args.map (arg) => @eval_expr(arg)
+            else
+              expr.args
+
+        # basic function
+        if func = BASIC_FUNCTIONS[funname.name]
+          return func()
+
+        # macro
+        if macro = currentEnv().getMacro(funname.name)
+          expr = @exec_lambda(macro, args)
+          return @eval_expr(expr)
+
+        # defined function
+        if lambda = currentEnv().get(funname.name)
+          return @exec_lambda(lambda, args)
+
+        # function name is not symbol
+        unless funname.constructor.name == 'Symbol'
+          error NotFunctionError, "#{funname.toString()}(#{funname.constructor.name}) is not a function", funname.pos
+
+        # method not found
+        error NameError, "undefined function \"#{funname.name}\"", funname.pos
       when 'Symbol'
-        currentEnv().get(expr.name)
+        if expr.quoted
+          return expr
+
+        value = currentEnv().get(expr.name)
+        unless value
+          error NameError, "undefined valiable \"#{expr.name}\"", expr.pos
+        value
       else
         expr
 
